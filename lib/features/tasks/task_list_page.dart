@@ -164,6 +164,13 @@ class _TaskListPageState extends State<TaskListPage> {
     _refresh();
   }
 
+  Future<void> _undo() async {
+    try {
+      await widget.repository.undo();
+    } catch (_) {}
+    _refresh();
+  }
+
   Future<void> _deleteSelected() async {
     if (_selected == null) return;
     try {
@@ -310,7 +317,7 @@ class _TaskListPageState extends State<TaskListPage> {
                     : () => _showEditDialog(index: _selected)),
                 _tool(Icons.delete, 'Delete', _selected == null ? null : _deleteSelected),
                 _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
-                _tool(Icons.undo, 'Undo', () {}),
+                _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
                 const VerticalDivider(),
                 _tool(Icons.save, 'Save', () => widget.repository.save().then((_) => _refresh())),
                 _tool(Icons.print, 'Print', () {}),
