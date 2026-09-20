@@ -299,21 +299,6 @@ class _TaskListPageState extends State<TaskListPage> {
                     ),
                     SubmenuButton(
                       menuChildren: [
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Batch complete')),
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Batch delete')),
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Move tasks')),
-                      ],
-                      child: const Text('Actions',
-                          style: TextStyle(fontSize: 13)),
-                    ),
-                    SubmenuButton(
-                      menuChildren: [
                         CheckboxMenuButton(
                             value: _showDates,
                             onChanged: (_) => setState(
