@@ -120,13 +120,14 @@ class TaskRepository {
 /// Default todo.txt location:
 ///
 /// * Linux: `~/Tasks/todo.txt`
-/// * Android: `<storage root>/Tasks/todo.txt`, where the storage root is
-///   derived dynamically (see [androidStorageRoot]); `/storage/emulated/0`
-///   is only the fallback.
+/// * Android: `<app documents dir>/todo.txt` (app-private, always writable
+///   under scoped storage; no storage permission needed).
 /// * Otherwise: `Tasks/todo.txt` under [homeDir] (or current dir if empty).
 ///
 /// [platform], [homeDir] and [storageRoot] are injectable for tests;
 /// by default they come from [Platform].
+/// NOTE: [storageRoot] is deprecated (shared storage is blocked by scoped
+/// storage on Android 10+) and only kept for backwards compatibility.
 String defaultTodoPath({String? platform, String? homeDir, String? storageRoot}) {
   final isAndroid = platform != null
       ? platform == 'android'
@@ -165,15 +166,23 @@ Future<String> androidStorageRoot(
   return '/storage/emulated/0';
 }
 
-/// Async default path: on Android derives the storage root dynamically,
-/// elsewhere same as [defaultTodoPath].
+/// Async default path: on Android uses the app-private documents directory
+/// (always writable under scoped storage), elsewhere same as [defaultTodoPath].
+/// [appDocDir] / [externalDirs] are injectable for tests.
 Future<String> defaultTodoPathAsync(
     {String? platform,
     String? homeDir,
+    String? appDocDir,
     Future<List<Directory?>?> Function()? externalDirs}) async {
   final isAndroid =
       platform != null ? platform == 'android' : Platform.isAndroid;
   if (isAndroid) {
+    try {
+      final dir = appDocDir ?? (await getApplicationDocumentsDirectory()).path;
+      return '$dir/todo.txt';
+    } catch (_) {
+      // Fall through to legacy shared-storage lookup.
+    }
     final root = await androidStorageRoot(externalDirs: externalDirs);
     return '$root/Tasks/todo.txt';
   }
@@ -197,14 +206,18 @@ String resolveTodoPath(
 }
 
 /// Async variant: `args.first` when present, otherwise [defaultTodoPathAsync]
-/// (dynamic storage-root lookup on Android).
+/// (app-private documents dir on Android).
 Future<String> resolveTodoPathAsync(
   List<String> args, {
   String? platform,
   String? homeDir,
+  String? appDocDir,
   Future<List<Directory?>?> Function()? externalDirs,
 }) async {
   if (args.isNotEmpty) return args.first;
   return defaultTodoPathAsync(
-      platform: platform, homeDir: homeDir, externalDirs: externalDirs);
+      platform: platform,
+      homeDir: homeDir,
+      appDocDir: appDocDir,
+      externalDirs: externalDirs);
 }
