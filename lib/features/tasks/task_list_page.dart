@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:todo_txt/todo_txt.dart';
 import 'task_repository.dart';
 
@@ -31,7 +32,8 @@ class TaskListPage extends StatefulWidget {
   State<TaskListPage> createState() => _TaskListPageState();
 }
 
-class _TaskListPageState extends State<TaskListPage> {
+class _TaskListPageState extends State<TaskListPage>
+    with WidgetsBindingObserver {
   final _editController = TextEditingController();
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
@@ -44,11 +46,37 @@ class _TaskListPageState extends State<TaskListPage> {
   bool _showTags = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    // Autosave on exit: persist any unsaved changes (fire-and-forget;
+    // dispose cannot await).
+    widget.repository.saveIfDirty().catchError((_) {});
+    WidgetsBinding.instance.removeObserver(this);
     _editController.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      widget.repository.saveIfDirty().catchError((_) {});
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      await widget.repository.save();
+    } catch (_) {}
+    _refresh();
   }
 
   void _refresh() => setState(() {});
@@ -282,7 +310,13 @@ class _TaskListPageState extends State<TaskListPage> {
   Widget build(BuildContext context) {
     final tasks = widget.repository.tasks;
     final visible = _visibleIndices;
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       body: Column(
         children: [
@@ -319,7 +353,7 @@ class _TaskListPageState extends State<TaskListPage> {
                 _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
                 _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
                 const VerticalDivider(),
-                _tool(Icons.save, 'Save', () => widget.repository.save().then((_) => _refresh())),
+                _tool(Icons.save, 'Save', _save),
                 _tool(Icons.print, 'Print', () {}),
                 _tool(Icons.folder_open, 'Open', () {}),
                 const VerticalDivider(),
@@ -511,6 +545,8 @@ class _TaskListPageState extends State<TaskListPage> {
         onPressed: () => _showEditDialog(),
         tooltip: 'Add task',
         child: const Icon(Icons.add),
+      ),
+      ),
       ),
     );
   }

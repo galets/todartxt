@@ -14,11 +14,16 @@ class TaskRepository {
   String? get path => _path;
   List<Task> get tasks => List.unmodifiable(_tasks);
   bool get canUndo => _history.isNotEmpty;
+  bool _dirty = false;
+
+  /// True when in-memory tasks differ from the loaded file.
+  bool get isDirty => _dirty;
 
   /// Loads tasks from [path] via `TodoTxt.load`.
   Future<void> load(String path) async {
     _path = path;
     _history.clear();
+    _dirty = false;
     final file = File(path);
     if (!await file.exists()) {
       _tasks = [];
@@ -38,12 +43,20 @@ class TaskRepository {
     } finally {
       await sink.close();
     }
+    _dirty = false;
+  }
+
+  /// Saves only when there are unsaved changes (used for autosave on exit).
+  Future<void> saveIfDirty() async {
+    if (!_dirty) return;
+    await save();
   }
 
   Future<void> toggleCompleted(int index) async {
     _ensureLoaded();
     _pushHistory();
     _tasks[index].completed = !_tasks[index].completed;
+    _dirty = true;
     await save();
   }
 
@@ -51,6 +64,7 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks.add(task);
+    _dirty = true;
     await save();
   }
 
@@ -58,6 +72,7 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks[index] = task;
+    _dirty = true;
     await save();
   }
 
@@ -65,6 +80,7 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks.removeAt(index);
+    _dirty = true;
     await save();
   }
 
@@ -72,7 +88,18 @@ class TaskRepository {
     _ensureLoaded();
     if (_history.isEmpty) return;
     _tasks = _history.removeLast();
+    _dirty = true;
     await save();
+  }
+
+  /// Applies [mutate] to the in-memory task list without saving, marking
+  /// the repository dirty so [saveIfDirty] (autosave on exit / Ctrl+S)
+  /// persists it later. Test hook for buffered edits.
+  void applyUnsaved(void Function(List<Task>) mutate) {
+    _ensureLoaded();
+    _pushHistory();
+    mutate(_tasks);
+    _dirty = true;
   }
 
   void _pushHistory() {
