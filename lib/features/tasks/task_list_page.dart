@@ -354,8 +354,6 @@ class _TaskListPageState extends State<TaskListPage>
                 _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
                 const VerticalDivider(),
                 _tool(Icons.save, 'Save', _save),
-                _tool(Icons.print, 'Print', () {}),
-                _tool(Icons.folder_open, 'Open', () {}),
                 const VerticalDivider(),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.visibility, size: 20),

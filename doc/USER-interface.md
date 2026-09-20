@@ -41,12 +41,10 @@ Left to right:
 7.  **Undo**: calls `repository.undo()`. Disabled when `!canUndo`.
 8.  Vertical divider.
 9.  **Save** (disk): calls `repository.save()` (also `Ctrl+S` via `CallbackShortcuts`). Toast/errors swallowed; refreshes UI.
-10. **Print** (printer): placeholder, `onPressed: () {}`.
-11. **Open** (folder): placeholder, `onPressed: () {}`.
-12. Vertical divider.
-13. **View** (eye icon, `PopupMenuButton`): checkable toggles `Show dates` (default on), `Show priorities` (default on), `Show tags` (default on). Hidden tokens are skipped in `_highlight()`.
-14. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
-15. **Counter** (right-aligned): `${visible.length}/${tasks.length} tasks`, 12pt gray.
+10. Vertical divider.
+11. **View** (eye icon, `PopupMenuButton`): checkable toggles `Show dates` (default on), `Show priorities` (default on), `Show tags` (default on). Hidden tokens are skipped in `_highlight()`.
+12. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
+13. **Counter** (right-aligned): `${visible.length}/${tasks.length} tasks`, 12pt gray.
 
 ### C. Sidebar / Filter Panel (left, fixed 230px, white)
 
