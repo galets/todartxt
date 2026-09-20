@@ -299,18 +299,6 @@ class _TaskListPageState extends State<TaskListPage> {
                     ),
                     SubmenuButton(
                       menuChildren: [
-                        for (final m in _SortMode.values)
-                          CheckboxMenuButton(
-                              value: _sort == m,
-                              onChanged: (_) =>
-                                  setState(() => _sort = m),
-                              child: Text('Sort by ${m.name}')),
-                      ],
-                      child: const Text('Sorting',
-                          style: TextStyle(fontSize: 13)),
-                    ),
-                    SubmenuButton(
-                      menuChildren: [
                         MenuItemButton(
                             onPressed: () {},
                             child: const Text('Documentation')),
@@ -392,6 +380,19 @@ class _TaskListPageState extends State<TaskListPage> {
                         value: 'tags',
                         checked: _showTags,
                         child: const Text('Show tags')),
+                  ],
+                ),
+                PopupMenuButton<_SortMode>(
+                  icon: const Icon(Icons.sort, size: 20),
+                  tooltip: 'Sort',
+                  offset: const Offset(0, 40),
+                  onSelected: (v) => setState(() => _sort = v),
+                  itemBuilder: (ctx) => [
+                    for (final m in _SortMode.values)
+                      CheckedPopupMenuItem(
+                          value: m,
+                          checked: _sort == m,
+                          child: Text('Sort by ${m.name}')),
                   ],
                 ),
               ],

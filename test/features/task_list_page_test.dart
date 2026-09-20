@@ -203,7 +203,7 @@ void main() {
     await pumpPage(tester, repo);
 
     Future<void> selectSort(String label) async {
-      await tester.tap(find.text('Sorting'));
+      await tester.tap(find.byTooltip('Sort'));
       await settle(tester);
       await tester.tap(find.text(label), warnIfMissed: false);
       await settle(tester);
