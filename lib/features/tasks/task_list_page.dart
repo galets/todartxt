@@ -266,56 +266,6 @@ class _TaskListPageState extends State<TaskListPage> {
       backgroundColor: const Color(0xFFF3F4F6),
       body: Column(
         children: [
-          // A. Menu bar (standard MenuBar: dropdown opens under label)
-          Container(
-            color: const Color(0xFFE8EAED),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                MenuBar(
-                  style: MenuStyle(
-                    backgroundColor:
-                        WidgetStateProperty.all(const Color(0xFFE8EAED)),
-                    elevation: WidgetStateProperty.all(0),
-                    padding: WidgetStateProperty.all(EdgeInsets.zero),
-                  ),
-                  children: [
-                    SubmenuButton(
-                      menuChildren: [
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Open')),
-                        MenuItemButton(
-                            onPressed: () => widget.repository
-                                .save()
-                                .then((_) => _refresh()),
-                            child: const Text('Save')),
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Export')),
-                      ],
-                      child: const Text('File',
-                          style: TextStyle(fontSize: 13)),
-                    ),
-                    SubmenuButton(
-                      menuChildren: [
-                        MenuItemButton(
-                            onPressed: () {},
-                            child: const Text('Documentation')),
-                      ],
-                      child: const Text('Help',
-                          style: TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text('${visible.length}/${tasks.length} tasks',
-                    style: TextStyle(
-                        color: Colors.grey.shade700, fontSize: 12)),
-                const SizedBox(width: 8),
-              ],
-            ),
-          ),
           // B. Toolbar
           Container(
             color: Colors.white,
@@ -395,6 +345,11 @@ class _TaskListPageState extends State<TaskListPage> {
                           child: Text('Sort by ${m.name}')),
                   ],
                 ),
+                const Spacer(),
+                Text('${visible.length}/${tasks.length} tasks',
+                    style: TextStyle(
+                        color: Colors.grey.shade700, fontSize: 12)),
+                const SizedBox(width: 8),
               ],
             ),
           ),
