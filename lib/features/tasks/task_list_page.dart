@@ -36,7 +36,7 @@ class _TaskListPageState extends State<TaskListPage> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   _Filter _filter = const _Filter(_FilterKind.all);
-  _SortMode _sort = _SortMode.none;
+  _SortMode _sort = _SortMode.priority;
   int? _selected;
   String _search = '';
   bool _showDates = true;

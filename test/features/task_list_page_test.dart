@@ -178,6 +178,21 @@ void main() {
     expect(find.text('2/4 tasks'), findsOneWidget);
   });
 
+  testWidgets('defaults to sorting by priority', (tester) async {
+    final repo = await loadedRepo(
+      tester,
+      '(C) Lowest task\n'
+      '(A) Highest task\n'
+      '(B) Middle task\n',
+    );
+    await pumpPage(tester, repo);
+
+    double top(String s) => tester.getTopLeft(rowsContaining(s).first).dy;
+
+    expect(top('Highest task'), lessThan(top('Middle task')));
+    expect(top('Middle task'), lessThan(top('Lowest task')));
+  });
+
   testWidgets('sorting changes row order', (tester) async {
     final repo = await loadedRepo(
       tester,
