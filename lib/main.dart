@@ -38,6 +38,7 @@ class _Home extends StatefulWidget {
 class _HomeState extends State<_Home> {
   late final TaskRepository _repo;
   String? _error;
+  bool _loading = false;
 
   @override
   void initState() {
@@ -48,11 +49,17 @@ class _HomeState extends State<_Home> {
       _error = 'No todo.txt file supplied on command line.';
       return;
     }
-    try {
-      _repo.load(widget.todoPath);
-    } catch (e) {
-      _error = 'Failed to load ${widget.todoPath}: $e';
-    }
+    _loading = true;
+    _repo.load(widget.todoPath).then((_) {
+      if (mounted) setState(() => _loading = false);
+    }).catchError((Object e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load ${widget.todoPath}: $e';
+        });
+      }
+    });
   }
 
   @override
@@ -61,6 +68,11 @@ class _HomeState extends State<_Home> {
       return Scaffold(
         appBar: AppBar(title: const Text('To-Dart-TXT')),
         body: Center(child: Text(_error!)),
+      );
+    }
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
     return TaskListPage(repository: _repo);

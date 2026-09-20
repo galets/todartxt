@@ -17,10 +17,12 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
-  TaskRepository loadedRepo(String content) {
+  Future<TaskRepository> loadedRepo(String content) async {
     final path = '${tmp.path}/todo.txt';
     File(path).writeAsStringSync(content);
-    return TaskRepository()..load(path);
+    final repo = TaskRepository();
+    await repo.load(path);
+    return repo;
   }
 
   testWidgets('shows error when no file supplied on command line',
@@ -30,7 +32,7 @@ void main() {
   });
 
   testWidgets('lists all tasks from loaded file', (tester) async {
-    final repo = loadedRepo('(A) Call mom +Family @phone\nBuy milk\n');
+    final repo = await loadedRepo('(A) Call mom +Family @phone\nBuy milk\n');
     await tester.pumpWidget(MaterialApp(home: TaskListPage(repository: repo)));
     expect(find.text('Call mom'), findsOneWidget);
     expect(find.text('Buy milk'), findsOneWidget);
@@ -38,10 +40,10 @@ void main() {
   });
 
   testWidgets('toggling checkbox saves to file', (tester) async {
-    final repo = loadedRepo('Buy milk\n');
+    final repo = await loadedRepo('Buy milk\n');
     await tester.pumpWidget(MaterialApp(home: TaskListPage(repository: repo)));
     await tester.tap(find.byType(Checkbox));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(repo.tasks.first.completed, isTrue);
     expect(File(repo.path!).readAsStringSync(), contains('x '));
   });

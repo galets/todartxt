@@ -51,9 +51,9 @@ class _TaskListPageState extends State<TaskListPage> {
     if (saved == null || saved.isEmpty) return;
     final task = Task.fromText(saved);
     if (index == null) {
-      widget.repository.add(task);
+      await widget.repository.add(task);
     } else {
-      widget.repository.update(index, task);
+      await widget.repository.update(index, task);
     }
     _refresh();
   }
@@ -77,8 +77,8 @@ class _TaskListPageState extends State<TaskListPage> {
                 return ListTile(
                   leading: Checkbox(
                     value: t.completed,
-                    onChanged: (_) {
-                      widget.repository.toggleCompleted(i);
+                    onChanged: (_) async {
+                      await widget.repository.toggleCompleted(i);
                       _refresh();
                     },
                   ),
@@ -94,8 +94,8 @@ class _TaskListPageState extends State<TaskListPage> {
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
                     tooltip: 'Delete',
-                    onPressed: () {
-                      widget.repository.removeAt(i);
+                    onPressed: () async {
+                      await widget.repository.removeAt(i);
                       _refresh();
                     },
                   ),

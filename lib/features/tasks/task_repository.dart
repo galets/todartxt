@@ -1,52 +1,68 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:todo_txt/todo_txt.dart';
 
 /// Loads/saves tasks from the file supplied on the command line.
 ///
-/// Wraps [TodoTxt] so the UI stays decoupled and testable.
+/// Wraps [TodoTxt] (stream-based load/save) so the UI stays decoupled and testable.
 class TaskRepository {
-  TodoTxt? _store;
+  String? _path;
+  List<Task> _tasks = [];
 
-  String? get path => _store?.path;
-  List<Task> get tasks => List.unmodifiable(_store?.tasks ?? const []);
+  String? get path => _path;
+  List<Task> get tasks => List.unmodifiable(_tasks);
 
-  /// Loads tasks from [path] via `TodoTxt.readFromFile`.
-  void load(String path) {
-    _store = TodoTxt.readFromFile(path: path);
+  /// Loads tasks from [path] via `TodoTxt.load`.
+  Future<void> load(String path) async {
+    _path = path;
+    final file = File(path);
+    if (!await file.exists()) {
+      _tasks = [];
+      return;
+    }
+    final lines = file.openRead().transform(utf8.decoder).transform(const LineSplitter());
+    _tasks = await TodoTxt.load(lines);
   }
 
   /// Persists current tasks back to the file used for loading.
-  void save() {
-    final store = _store;
-    if (store == null) throw StateError('No file loaded');
-    store.writeToFile();
+  Future<void> save() async {
+    final path = _path;
+    if (path == null) throw StateError('No file loaded');
+    final sink = File(path).openWrite();
+    try {
+      await TodoTxt.save(_tasks, sink);
+    } finally {
+      await sink.close();
+    }
   }
 
-  void toggleCompleted(int index) {
-    final store = _store;
-    if (store == null) throw StateError('No file loaded');
-    store.tasks[index].completed = !store.tasks[index].completed;
-    save();
+  Future<void> toggleCompleted(int index) async {
+    _ensureLoaded();
+    _tasks[index].completed = !_tasks[index].completed;
+    await save();
   }
 
-  void add(Task task) {
-    final store = _store;
-    if (store == null) throw StateError('No file loaded');
-    store.tasks.add(task);
-    save();
+  Future<void> add(Task task) async {
+    _ensureLoaded();
+    _tasks.add(task);
+    await save();
   }
 
-  void update(int index, Task task) {
-    final store = _store;
-    if (store == null) throw StateError('No file loaded');
-    store.tasks[index] = task;
-    save();
+  Future<void> update(int index, Task task) async {
+    _ensureLoaded();
+    _tasks[index] = task;
+    await save();
   }
 
-  void removeAt(int index) {
-    final store = _store;
-    if (store == null) throw StateError('No file loaded');
-    store.tasks.removeAt(index);
-    save();
+  Future<void> removeAt(int index) async {
+    _ensureLoaded();
+    _tasks.removeAt(index);
+    await save();
+  }
+
+  void _ensureLoaded() {
+    if (_path == null) throw StateError('No file loaded');
   }
 }
 

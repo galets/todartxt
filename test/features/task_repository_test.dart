@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -31,31 +32,37 @@ void main() {
       return f.path;
     }
 
-    test('loads tasks from file supplied on command line', () {
+    Future<List<Task>> readTasks(String path) => TodoTxt.load(
+          File(path).openRead().transform(utf8.decoder).transform(const LineSplitter()),
+        );
+
+    test('loads tasks from file supplied on command line', () async {
       final path = writeTodo('todo.txt', '(A) Call mom +Family @phone\nBuy milk\n');
       final repo = TaskRepository();
-      repo.load(path);
+      await repo.load(path);
       expect(repo.path, path);
       expect(repo.tasks.map((t) => t.title), ['Call mom', 'Buy milk']);
       expect(repo.tasks.first.priority, 'A');
     });
 
-    test('toggle + save persists to loaded file', () {
+    test('toggle + save persists to loaded file', () async {
       final path = writeTodo('todo.txt', 'Buy milk\n');
-      final repo = TaskRepository()..load(path);
-      repo.toggleCompleted(0);
-      final reloaded = TodoTxt.readFromFile(path: path);
-      expect(reloaded.tasks.first.completed, isTrue);
+      final repo = TaskRepository();
+      await repo.load(path);
+      await repo.toggleCompleted(0);
+      final reloaded = await readTasks(path);
+      expect(reloaded.first.completed, isTrue);
     });
 
-    test('add/update/remove persist to loaded file', () {
+    test('add/update/remove persist to loaded file', () async {
       final path = writeTodo('todo.txt', 'Buy milk\n');
-      final repo = TaskRepository()..load(path);
-      repo.add(Task.fromText('(B) Walk dog'));
-      repo.update(0, Task.fromText('Buy bread'));
-      repo.removeAt(1);
-      final reloaded = TodoTxt.readFromFile(path: path);
-      expect(reloaded.tasks.map((t) => t.title), ['Buy bread']);
+      final repo = TaskRepository();
+      await repo.load(path);
+      await repo.add(Task.fromText('(B) Walk dog'));
+      await repo.update(0, Task.fromText('Buy bread'));
+      await repo.removeAt(1);
+      final reloaded = await readTasks(path);
+      expect(reloaded.map((t) => t.title), ['Buy bread']);
     });
 
     test('save without load throws', () {
