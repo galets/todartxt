@@ -230,7 +230,7 @@ void main() {
     expect(rowsContaining('2023-05-01'), findsOneWidget);
 
     Future<void> toggleView(String label) async {
-      await tester.tap(find.text('View'));
+      await tester.tap(find.byTooltip('View'));
       await settle(tester);
       await tester.tap(find.text(label), warnIfMissed: false);
       await settle(tester);

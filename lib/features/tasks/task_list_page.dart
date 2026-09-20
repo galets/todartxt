@@ -299,27 +299,6 @@ class _TaskListPageState extends State<TaskListPage> {
                     ),
                     SubmenuButton(
                       menuChildren: [
-                        CheckboxMenuButton(
-                            value: _showDates,
-                            onChanged: (_) => setState(
-                                () => _showDates = !_showDates),
-                            child: const Text('Show dates')),
-                        CheckboxMenuButton(
-                            value: _showPriorities,
-                            onChanged: (_) => setState(() =>
-                                _showPriorities = !_showPriorities),
-                            child: const Text('Show priorities')),
-                        CheckboxMenuButton(
-                            value: _showTags,
-                            onChanged: (_) => setState(
-                                () => _showTags = !_showTags),
-                            child: const Text('Show tags')),
-                      ],
-                      child: const Text('View',
-                          style: TextStyle(fontSize: 13)),
-                    ),
-                    SubmenuButton(
-                      menuChildren: [
                         for (final m in _SortMode.values)
                           CheckboxMenuButton(
                               value: _sort == m,
@@ -385,6 +364,36 @@ class _TaskListPageState extends State<TaskListPage> {
                 _tool(Icons.save, 'Save', () => widget.repository.save().then((_) => _refresh())),
                 _tool(Icons.print, 'Print', () {}),
                 _tool(Icons.folder_open, 'Open', () {}),
+                const VerticalDivider(),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.visibility, size: 20),
+                  tooltip: 'View',
+                  offset: const Offset(0, 40),
+                  onSelected: (v) => setState(() {
+                    switch (v) {
+                      case 'dates':
+                        _showDates = !_showDates;
+                      case 'priorities':
+                        _showPriorities = !_showPriorities;
+                      case 'tags':
+                        _showTags = !_showTags;
+                    }
+                  }),
+                  itemBuilder: (ctx) => [
+                    CheckedPopupMenuItem(
+                        value: 'dates',
+                        checked: _showDates,
+                        child: const Text('Show dates')),
+                    CheckedPopupMenuItem(
+                        value: 'priorities',
+                        checked: _showPriorities,
+                        child: const Text('Show priorities')),
+                    CheckedPopupMenuItem(
+                        value: 'tags',
+                        checked: _showTags,
+                        child: const Text('Show tags')),
+                  ],
+                ),
               ],
             ),
           ),
