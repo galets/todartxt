@@ -30,7 +30,9 @@ There is **no native global menu bar**. The window contains (top to bottom):
 
 ### B. Toolbar (top, white `Container`)
 
-Left to right:
+Responsive breakpoint: `LayoutBuilder`, narrow when `maxWidth < 700`.
+
+Wide (desktop) — left to right:
 
 1.  **Search field:** 220x34 `TextField`, hint `Search…`, magnifier prefix. Live-filters list by case-insensitive substring of `Task.toText()`.
 2.  **Search icon** (`Search (/)` tooltip): focuses the search field.
@@ -46,7 +48,11 @@ Left to right:
 12. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
 13. **Counter** (right-aligned): `${visible.length}/${tasks.length} tasks`, 12pt gray.
 
-### C. Sidebar / Filter Panel (left, fixed 230px, white)
+Narrow (Android/phone) — single compact row: **Filters** (menu icon, opens drawer) | **Search toggle** (`Search (/)`, expands a full-width `Search…` field in a second row only when tapped) | spacer | short counter (`visible/total`) | **Add** | **Sort** | **More actions** (`PopupMenuButton`: Edit/Delete/Complete/Undo when applicable, Save, checkable Show dates/priorities/tags). Inline search field is hidden until toggled so the bar never overflows.
+
+### C. Sidebar / Filter Panel
+
+Wide: fixed 230px white panel left of the task list. Narrow: slide-out `Drawer` (opened via Filters menu icon); tapping a filter applies it and closes the drawer.
 
 `ListView` with section headers (`FILTERS`, `CONTEXTS`, `PROJECTS`, `PRIORITIES`, `STATUS`; 10pt bold gray, letter-spacing 0.8). Each row is a dense `ListTile` (16px leading icon, 13pt label, gray count trailing, `blue.shade50` when active). Clicking sets `_filter` and clears selection.
 

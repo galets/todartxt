@@ -45,6 +45,8 @@ class _TaskListPageState extends State<TaskListPage>
   bool _showPriorities = true;
   bool _showTags = true;
 
+  bool _searchExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -288,7 +290,8 @@ class _TaskListPageState extends State<TaskListPage>
     return TextSpan(children: spans);
   }
 
-  Widget _sidebarTile(String label, IconData icon, _Filter f, int count) {
+  Widget _sidebarTile(String label, IconData icon, _Filter f, int count,
+      {VoidCallback? onSelected}) {
     final active = _filter.kind == f.kind && _filter.value == f.value;
     return ListTile(
       dense: true,
@@ -299,10 +302,258 @@ class _TaskListPageState extends State<TaskListPage>
           style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
       selected: active,
       selectedTileColor: Colors.blue.shade50,
-      onTap: () => setState(() {
-        _filter = f;
-        _selected = null;
-      }),
+      onTap: () {
+        setState(() {
+          _filter = f;
+          _selected = null;
+        });
+        onSelected?.call();
+      },
+    );
+  }
+
+  List<Widget> _sidebarChildren(List<Task> tasks, {VoidCallback? onSelected}) =>
+      [
+        _section('FILTERS'),
+        _sidebarTile('All', Icons.inbox, const _Filter(_FilterKind.all),
+            tasks.length,
+            onSelected: onSelected),
+        _sidebarTile(
+            'Uncategorized',
+            Icons.label_off,
+            const _Filter(_FilterKind.uncategorized),
+            tasks
+                .where((t) => t.context.isEmpty && t.project.isEmpty)
+                .length,
+            onSelected: onSelected),
+        _sidebarTile(
+            'Due',
+            Icons.event,
+            const _Filter(_FilterKind.due),
+            tasks
+                .where((t) => t.toText().contains(RegExp(r'due:\S+')))
+                .length,
+            onSelected: onSelected),
+        _section('CONTEXTS'),
+        for (final c in _contexts.toList()..sort())
+          _sidebarTile('@$c', Icons.alternate_email,
+              _Filter(_FilterKind.context, c),
+              tasks.where((t) => t.context.contains(c)).length,
+              onSelected: onSelected),
+        _section('PROJECTS'),
+        for (final p in _projects.toList()..sort())
+          _sidebarTile('+$p', Icons.folder,
+              _Filter(_FilterKind.project, p),
+              tasks.where((t) => t.project.contains(p)).length,
+              onSelected: onSelected),
+        _section('PRIORITIES'),
+        for (final pr in _priorities.toList()..sort())
+          _sidebarTile('($pr)', Icons.flag,
+              _Filter(_FilterKind.priority, pr),
+              tasks.where((t) => t.priority == pr).length,
+              onSelected: onSelected),
+        _section('STATUS'),
+        _sidebarTile('Complete', Icons.check_circle,
+            const _Filter(_FilterKind.complete),
+            tasks.where((t) => t.completed).length,
+            onSelected: onSelected),
+      ];
+
+  Widget _searchField() => SizedBox(
+        width: 220,
+        height: 34,
+        child: TextField(
+          controller: _searchController,
+          focusNode: _searchFocus,
+          decoration: InputDecoration(
+            hintText: 'Search…',
+            prefixIcon: const Icon(Icons.search, size: 18),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6)),
+            contentPadding: EdgeInsets.zero,
+          ),
+          onChanged: (v) => setState(() => _search = v),
+        ),
+      );
+
+  PopupMenuButton<String> _viewMenu() => PopupMenuButton<String>(
+        icon: const Icon(Icons.visibility, size: 20),
+        tooltip: 'View',
+        offset: const Offset(0, 40),
+        onSelected: (v) => setState(() {
+          switch (v) {
+            case 'dates':
+              _showDates = !_showDates;
+            case 'priorities':
+              _showPriorities = !_showPriorities;
+            case 'tags':
+              _showTags = !_showTags;
+          }
+        }),
+        itemBuilder: (ctx) => [
+          CheckedPopupMenuItem(
+              value: 'dates',
+              checked: _showDates,
+              child: const Text('Show dates')),
+          CheckedPopupMenuItem(
+              value: 'priorities',
+              checked: _showPriorities,
+              child: const Text('Show priorities')),
+          CheckedPopupMenuItem(
+              value: 'tags',
+              checked: _showTags,
+              child: const Text('Show tags')),
+        ],
+      );
+
+  PopupMenuButton<_SortMode> _sortMenu() => PopupMenuButton<_SortMode>(
+        icon: const Icon(Icons.sort, size: 20),
+        tooltip: 'Sort',
+        offset: const Offset(0, 40),
+        onSelected: (v) => setState(() => _sort = v),
+        itemBuilder: (ctx) => [
+          for (final m in _SortMode.values)
+            CheckedPopupMenuItem(
+                value: m,
+                checked: _sort == m,
+                child: Text('Sort by ${m.name}')),
+        ],
+      );
+
+  Widget _wideToolbar(List<int> visible, List<Task> tasks) => Container(
+        color: Colors.white,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(
+          children: [
+            _searchField(),
+            const SizedBox(width: 8),
+            _tool(Icons.search, 'Search (/)', () => _searchFocus.requestFocus()),
+            _tool(Icons.add, 'New task', () => _showEditDialog()),
+            _tool(Icons.edit, 'Edit', _selected == null
+                ? null
+                : () => _showEditDialog(index: _selected)),
+            _tool(Icons.delete, 'Delete', _selected == null ? null : _deleteSelected),
+            _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
+            _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
+            const VerticalDivider(),
+            _tool(Icons.save, 'Save', _save),
+            const VerticalDivider(),
+            _viewMenu(),
+            _sortMenu(),
+            const Spacer(),
+            Text('${visible.length}/${tasks.length} tasks',
+                style: TextStyle(
+                    color: Colors.grey.shade700, fontSize: 12)),
+            const SizedBox(width: 8),
+          ],
+        ),
+      );
+
+  Widget _narrowToolbar(
+      BuildContext context, List<int> visible, List<Task> tasks) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _tool(Icons.menu, 'Filters', () => Scaffold.of(context).openDrawer()),
+              _tool(Icons.search, 'Search (/)', () {
+                setState(() => _searchExpanded = !_searchExpanded);
+                if (_searchExpanded) _searchFocus.requestFocus();
+              }),
+              const Spacer(),
+              Text('${visible.length}/${tasks.length}',
+                  style: TextStyle(
+                      color: Colors.grey.shade700, fontSize: 12)),
+              _tool(Icons.add, 'New task', () => _showEditDialog()),
+              _sortMenu(),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                tooltip: 'More actions',
+                offset: const Offset(0, 40),
+                onSelected: (v) async {
+                  switch (v) {
+                    case 'edit':
+                      await _showEditDialog(index: _selected);
+                    case 'delete':
+                      await _deleteSelected();
+                    case 'complete':
+                      await _completeSelected();
+                    case 'undo':
+                      await _undo();
+                    case 'save':
+                      await _save();
+                    case 'dates':
+                      setState(() => _showDates = !_showDates);
+                    case 'priorities':
+                      setState(() => _showPriorities = !_showPriorities);
+                    case 'tags':
+                      setState(() => _showTags = !_showTags);
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                      value: 'edit',
+                      enabled: _selected != null,
+                      child: const Text('Edit')),
+                  PopupMenuItem(
+                      value: 'delete',
+                      enabled: _selected != null,
+                      child: const Text('Delete')),
+                  PopupMenuItem(
+                      value: 'complete',
+                      enabled: _selected != null,
+                      child: const Text('Complete')),
+                  PopupMenuItem(
+                      value: 'undo',
+                      enabled: widget.repository.canUndo,
+                      child: const Text('Undo')),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                      value: 'save', child: Text('Save')),
+                  const PopupMenuDivider(),
+                  CheckedPopupMenuItem(
+                      value: 'dates',
+                      checked: _showDates,
+                      child: const Text('Show dates')),
+                  CheckedPopupMenuItem(
+                      value: 'priorities',
+                      checked: _showPriorities,
+                      child: const Text('Show priorities')),
+                  CheckedPopupMenuItem(
+                      value: 'tags',
+                      checked: _showTags,
+                      child: const Text('Show tags')),
+                ],
+              ),
+            ],
+          ),
+          if (_searchExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
+              child: SizedBox(
+                height: 34,
+                width: double.infinity,
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  decoration: InputDecoration(
+                    hintText: 'Search…',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6)),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -316,235 +567,139 @@ class _TaskListPageState extends State<TaskListPage>
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      body: Column(
-        children: [
-          // B. Toolbar
-          Container(
-            color: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 220,
-                  height: 34,
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    decoration: InputDecoration(
-                      hintText: 'Search…',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6)),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (v) => setState(() => _search = v),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _tool(Icons.search, 'Search (/)', () => _searchFocus.requestFocus()),
-                _tool(Icons.add, 'New task', () => _showEditDialog()),
-                _tool(Icons.edit, 'Edit', _selected == null
-                    ? null
-                    : () => _showEditDialog(index: _selected)),
-                _tool(Icons.delete, 'Delete', _selected == null ? null : _deleteSelected),
-                _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
-                _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
-                const VerticalDivider(),
-                _tool(Icons.save, 'Save', _save),
-                const VerticalDivider(),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.visibility, size: 20),
-                  tooltip: 'View',
-                  offset: const Offset(0, 40),
-                  onSelected: (v) => setState(() {
-                    switch (v) {
-                      case 'dates':
-                        _showDates = !_showDates;
-                      case 'priorities':
-                        _showPriorities = !_showPriorities;
-                      case 'tags':
-                        _showTags = !_showTags;
-                    }
-                  }),
-                  itemBuilder: (ctx) => [
-                    CheckedPopupMenuItem(
-                        value: 'dates',
-                        checked: _showDates,
-                        child: const Text('Show dates')),
-                    CheckedPopupMenuItem(
-                        value: 'priorities',
-                        checked: _showPriorities,
-                        child: const Text('Show priorities')),
-                    CheckedPopupMenuItem(
-                        value: 'tags',
-                        checked: _showTags,
-                        child: const Text('Show tags')),
-                  ],
-                ),
-                PopupMenuButton<_SortMode>(
-                  icon: const Icon(Icons.sort, size: 20),
-                  tooltip: 'Sort',
-                  offset: const Offset(0, 40),
-                  onSelected: (v) => setState(() => _sort = v),
-                  itemBuilder: (ctx) => [
-                    for (final m in _SortMode.values)
-                      CheckedPopupMenuItem(
-                          value: m,
-                          checked: _sort == m,
-                          child: Text('Sort by ${m.name}')),
-                  ],
-                ),
-                const Spacer(),
-                Text('${visible.length}/${tasks.length} tasks',
-                    style: TextStyle(
-                        color: Colors.grey.shade700, fontSize: 12)),
-                const SizedBox(width: 8),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // C + D
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 230,
-                  color: Colors.white,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    children: [
-                      _section('FILTERS'),
-                      _sidebarTile('All', Icons.inbox,
-                          const _Filter(_FilterKind.all), tasks.length),
-                      _sidebarTile(
-                          'Uncategorized',
-                          Icons.label_off,
-                          const _Filter(_FilterKind.uncategorized),
-                          tasks
-                              .where((t) =>
-                                  t.context.isEmpty && t.project.isEmpty)
-                              .length),
-                      _sidebarTile('Due', Icons.event,
-                          const _Filter(_FilterKind.due),
-                          tasks
-                              .where((t) => t
-                                  .toText()
-                                  .contains(RegExp(r'due:\S+')))
-                              .length),
-                      _section('CONTEXTS'),
-                      for (final c in _contexts.toList()..sort())
-                        _sidebarTile('@$c', Icons.alternate_email,
-                            _Filter(_FilterKind.context, c),
-                            tasks.where((t) => t.context.contains(c)).length),
-                      _section('PROJECTS'),
-                      for (final p in _projects.toList()..sort())
-                        _sidebarTile('+$p', Icons.folder,
-                            _Filter(_FilterKind.project, p),
-                            tasks.where((t) => t.project.contains(p)).length),
-                      _section('PRIORITIES'),
-                      for (final pr in _priorities.toList()..sort())
-                        _sidebarTile('($pr)', Icons.flag,
-                            _Filter(_FilterKind.priority, pr),
-                            tasks.where((t) => t.priority == pr).length),
-                      _section('STATUS'),
-                      _sidebarTile('Complete', Icons.check_circle,
-                          const _Filter(_FilterKind.complete),
-                          tasks.where((t) => t.completed).length),
-                    ],
-                  ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: visible.isEmpty
-                      ? const Center(child: Text('No tasks match filter'))
-                      : ListView.builder(
-                          itemCount: visible.length,
-                          itemBuilder: (ctx, vi) {
-                            final i = visible[vi];
-                            final t = tasks[i];
-                            final raw = t.toText();
-                            final sel = _selected == i;
-                            return GestureDetector(
-                              onTap: () => setState(() => _selected = i),
-                              onDoubleTap: () => _showEditDialog(index: i),
-                              child: Container(
-                                color: sel
-                                    ? Colors.blue.shade50
-                                    : (vi.isEven
-                                        ? Colors.white
-                                        : const Color(0xFFFAFAFA)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 5),
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Checkbox(
-                                      value: t.completed,
-                                      visualDensity:
-                                          VisualDensity.compact,
-                                      onChanged: (_) async {
-                                        try {
-                                          await widget.repository
-                                              .toggleCompleted(i);
-                                        } catch (_) {}
-                                        _refresh();
-                                      },
-                                    ),
-                                    if (_showPriorities &&
-                                        t.priority != null &&
-                                        !t.completed)
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                            right: 6, top: 3),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: t.priority == 'A'
-                                              ? Colors.red.shade600
-                                              : t.priority == 'B'
-                                                  ? Colors.orange.shade600
-                                                  : Colors.blue.shade600,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(t.priority!,
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight:
-                                                    FontWeight.bold)),
-                                      ),
-                                    Expanded(
-                                      child: Opacity(
-                                        opacity:
-                                            t.completed ? 0.55 : 1.0,
-                                        child: RichText(
-                                            text: _highlight(raw, t)),
-                                      ),
-                                    ),
-                                  ],
+        child: LayoutBuilder(
+          builder: (ctx, constraints) {
+            final narrow = constraints.maxWidth < 700;
+            final taskList = visible.isEmpty
+                ? const Center(child: Text('No tasks match filter'))
+                : ListView.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (c2, vi) {
+                      final i = visible[vi];
+                      final t = tasks[i];
+                      final raw = t.toText();
+                      final sel = _selected == i;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selected = i),
+                        onDoubleTap: () => _showEditDialog(index: i),
+                        child: Container(
+                          color: sel
+                              ? Colors.blue.shade50
+                              : (vi.isEven
+                                  ? Colors.white
+                                  : const Color(0xFFFAFAFA)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 5),
+                          child: Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Checkbox(
+                                value: t.completed,
+                                visualDensity:
+                                    VisualDensity.compact,
+                                onChanged: (_) async {
+                                  try {
+                                    await widget.repository
+                                        .toggleCompleted(i);
+                                  } catch (_) {}
+                                  _refresh();
+                                },
+                              ),
+                              if (_showPriorities &&
+                                  t.priority != null &&
+                                  !t.completed)
+                                Container(
+                                  margin: const EdgeInsets.only(
+                                      right: 6, top: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: t.priority == 'A'
+                                        ? Colors.red.shade600
+                                        : t.priority == 'B'
+                                            ? Colors.orange.shade600
+                                            : Colors.blue.shade600,
+                                    borderRadius:
+                                        BorderRadius.circular(4),
+                                  ),
+                                  child: Text(t.priority!,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight:
+                                              FontWeight.bold)),
+                                ),
+                              Expanded(
+                                child: Opacity(
+                                  opacity:
+                                      t.completed ? 0.55 : 1.0,
+                                  child: RichText(
+                                      text: _highlight(raw, t)),
                                 ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditDialog(),
-        tooltip: 'Add task',
-        child: const Icon(Icons.add),
-      ),
-      ),
+                      );
+                    },
+                  );
+            return Scaffold(
+              backgroundColor: const Color(0xFFF3F4F6),
+              drawer: narrow
+                  ? Drawer(
+                      child: SafeArea(
+                        child: ListView(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 4),
+                          children: _sidebarChildren(tasks,
+                              onSelected: () =>
+                                  Navigator.of(ctx).pop()),
+                        ),
+                      ),
+                    )
+                  : null,
+              body: Column(
+                children: [
+                  Builder(
+                    builder: (scaffoldCtx) => narrow
+                        ? _narrowToolbar(
+                            scaffoldCtx, visible, tasks)
+                        : _wideToolbar(visible, tasks),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: narrow
+                        ? taskList
+                        : Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: [
+                              Container(
+                                width: 230,
+                                color: Colors.white,
+                                child: ListView(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4),
+                                  children:
+                                      _sidebarChildren(tasks),
+                                ),
+                              ),
+                              const VerticalDivider(width: 1),
+                              Expanded(child: taskList),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () => _showEditDialog(),
+                tooltip: 'Add task',
+                child: const Icon(Icons.add),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
