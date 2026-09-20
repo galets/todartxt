@@ -43,6 +43,7 @@ Wide (desktop) — left to right:
 7.  **Undo**: calls `repository.undo()`. Disabled when `!canUndo`.
 8.  Vertical divider.
 9.  **Save** (disk): calls `repository.save()` (also `Ctrl+S` via `CallbackShortcuts`). Toast/errors swallowed; refreshes UI.
+9b. **Storage location** (folder icon, tooltip `Storage location`): shows dialog with current `todo.txt` path + `Choose folder` button. Opens SAF directory picker (`FilePickerPlatform.instance.getDirectoryPath()`); persists choice in `SharedPreferences` (`todo_txt_custom_dir`/`todo_txt_custom_path`), migrates existing file content, reloads repo, shows `SnackBar` with new path. On narrow screens also under **More actions → Storage location…**.
 10. Vertical divider.
 11. **View** (eye icon, `PopupMenuButton`): checkable toggles `Show dates` (default on), `Show priorities` (default on), `Show tags` (default on). Hidden tokens are skipped in `_highlight()`.
 12. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
@@ -97,7 +98,7 @@ User interactions (all in-memory + `TaskRepository`, persisted on save):
 6.  **View menu:** hides/shows dates, priorities (badge + inline), tags (pills).
 7.  **Sort menu:** reorders visible list; completed always last.
 8.  **Save:** manual via toolbar/`Ctrl+S`; automatic `saveIfDirty()` (fire-and-forget) on widget `dispose` and on `hidden`/`paused`/`detached` lifecycle events.
-9.  **Startup:** async `main(args)` resolves `todo.txt` path from `args[0]`, else default `~/Tasks/todo.txt` (Linux) / `<storage root>/Tasks/todo.txt` (Android, root derived via `getExternalStorageDirectories`, fallback `/storage/emulated/0`); missing directory/file are created, then shows error scaffold if unloadable, spinner while loading.
+9.  **Startup:** async `main(args)` requests All-files access (`MANAGE_EXTERNAL_STORAGE`, pre-11 `READ/WRITE_EXTERNAL_STORAGE`) then resolves `todo.txt` path from `args[0]`, else user-picked shared folder (persisted in `SharedPreferences`) when set, else shared `/storage/emulated/0/Tasks/todo.txt` on Android (visible via `adb ls /storage/emulated/0/Tasks/`; grant All-files access when prompted, else file creation fails), else `~/Tasks/todo.txt` (Linux) / app-private docs (fallback); missing directory/file are created, then shows error scaffold if unloadable, spinner while loading.
 
 ## 4. Technical Data Flow
 

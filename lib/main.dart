@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'features/tasks/task_list_page.dart';
 import 'features/tasks/task_repository.dart';
 
+import 'features/tasks/storage_location.dart';
+
 /// Entry point.
 ///
 /// The todo.txt file path is supplied on the command line:
 /// `flutter run -- path/to/todo.txt` (args[0]).
-/// Without args defaults to `~/Tasks/todo.txt` on Linux and
-/// `<storage root>/Tasks/todo.txt` on Android (storage root resolved
-/// dynamically via path_provider; created if missing).
+/// Without args: user-picked shared folder (SAF, persisted) when set,
+/// else `~/Tasks/todo.txt` on Linux and app-private `<docs>/todo.txt`
+/// on Android (pick a shared folder in the UI to get
+/// `<storage root>/Tasks/todo.txt`, visible via `adb ls`).
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp(todoPath: await resolveTodoPathAsync(args)));
+  await ensureSharedStorageAccess();
+  runApp(MyApp(todoPath: await effectiveTodoPath(args)));
 }
 
 class MyApp extends StatelessWidget {

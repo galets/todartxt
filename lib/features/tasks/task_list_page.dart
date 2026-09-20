@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart' show FilePickerPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:todo_txt/todo_txt.dart';
+import 'storage_location.dart';
 import 'task_repository.dart';
 
 enum _FilterKind { all, uncategorized, due, context, project, priority, complete }
@@ -72,6 +74,48 @@ class _TaskListPageState extends State<TaskListPage>
         state == AppLifecycleState.paused) {
       widget.repository.saveIfDirty().catchError((_) {});
     }
+  }
+
+  Future<void> _pickStorageDir() async {
+    final dir = await FilePickerPlatform.instance.getDirectoryPath(
+      dialogTitle: 'Choose shared folder for todo.txt (e.g. Tasks)',
+    );
+    if (dir == null) return;
+    final from = widget.repository.path;
+    try {
+      final to = await saveCustomDir(dir);
+      if (from != null) await migrateTodoFile(from, to);
+      await widget.repository.load(to);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('todo.txt location: $to')),
+        );
+      }
+    } catch (_) {}
+    _refresh();
+  }
+
+  Future<void> _showStorageInfo() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Storage location'),
+        content: Text(widget.repository.path ?? '(not loaded)'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _pickStorageDir();
+            },
+            child: const Text('Choose folder'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -438,6 +482,7 @@ class _TaskListPageState extends State<TaskListPage>
             _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
             const VerticalDivider(),
             _tool(Icons.save, 'Save', _save),
+            _tool(Icons.folder_open, 'Storage location', _showStorageInfo),
             const VerticalDivider(),
             _viewMenu(),
             _sortMenu(),
@@ -487,6 +532,8 @@ class _TaskListPageState extends State<TaskListPage>
                       await _undo();
                     case 'save':
                       await _save();
+                    case 'storage':
+                      await _showStorageInfo();
                     case 'dates':
                       setState(() => _showDates = !_showDates);
                     case 'priorities':
@@ -515,6 +562,8 @@ class _TaskListPageState extends State<TaskListPage>
                   const PopupMenuDivider(),
                   const PopupMenuItem(
                       value: 'save', child: Text('Save')),
+                  const PopupMenuItem(
+                      value: 'storage', child: Text('Storage location…')),
                   const PopupMenuDivider(),
                   CheckedPopupMenuItem(
                       value: 'dates',
