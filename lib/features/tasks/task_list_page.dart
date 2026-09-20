@@ -266,18 +266,96 @@ class _TaskListPageState extends State<TaskListPage> {
       backgroundColor: const Color(0xFFF3F4F6),
       body: Column(
         children: [
-          // A. Menu bar
+          // A. Menu bar (standard MenuBar: dropdown opens under label)
           Container(
             color: const Color(0xFFE8EAED),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                _menu('File', ['Open', 'Save', 'Export']),
-                _menu('Actions',
-                    ['Batch complete', 'Batch delete', 'Move tasks']),
-                _menu('View', null, isView: true),
-                _menu('Sorting', null, isSort: true),
-                _menu('Help', ['Documentation']),
+                MenuBar(
+                  style: MenuStyle(
+                    backgroundColor:
+                        WidgetStateProperty.all(const Color(0xFFE8EAED)),
+                    elevation: WidgetStateProperty.all(0),
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                  ),
+                  children: [
+                    SubmenuButton(
+                      menuChildren: [
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Open')),
+                        MenuItemButton(
+                            onPressed: () => widget.repository
+                                .save()
+                                .then((_) => _refresh()),
+                            child: const Text('Save')),
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Export')),
+                      ],
+                      child: const Text('File',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    SubmenuButton(
+                      menuChildren: [
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Batch complete')),
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Batch delete')),
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Move tasks')),
+                      ],
+                      child: const Text('Actions',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    SubmenuButton(
+                      menuChildren: [
+                        CheckboxMenuButton(
+                            value: _showDates,
+                            onChanged: (_) => setState(
+                                () => _showDates = !_showDates),
+                            child: const Text('Show dates')),
+                        CheckboxMenuButton(
+                            value: _showPriorities,
+                            onChanged: (_) => setState(() =>
+                                _showPriorities = !_showPriorities),
+                            child: const Text('Show priorities')),
+                        CheckboxMenuButton(
+                            value: _showTags,
+                            onChanged: (_) => setState(
+                                () => _showTags = !_showTags),
+                            child: const Text('Show tags')),
+                      ],
+                      child: const Text('View',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    SubmenuButton(
+                      menuChildren: [
+                        for (final m in _SortMode.values)
+                          CheckboxMenuButton(
+                              value: _sort == m,
+                              onChanged: (_) =>
+                                  setState(() => _sort = m),
+                              child: Text('Sort by ${m.name}')),
+                      ],
+                      child: const Text('Sorting',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    SubmenuButton(
+                      menuChildren: [
+                        MenuItemButton(
+                            onPressed: () {},
+                            child: const Text('Documentation')),
+                      ],
+                      child: const Text('Help',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                  ],
+                ),
                 const Spacer(),
                 Text('${visible.length}/${tasks.length} tasks',
                     style: TextStyle(
@@ -483,55 +561,4 @@ class _TaskListPageState extends State<TaskListPage> {
           tooltip: tip,
           onPressed: onPressed,
           visualDensity: VisualDensity.compact);
-
-  Widget _menu(String label, List<String>? items,
-      {bool isView = false, bool isSort = false}) {
-    return PopupMenuButton<String>(
-      tooltip: label,
-      onSelected: (v) {
-        if (v.startsWith('sort:')) {
-          setState(() => _sort = _SortMode.values
-              .firstWhere((e) => e.name == v.substring(5)));
-        } else if (v.startsWith('view:')) {
-          setState(() {
-            if (v == 'view:dates') _showDates = !_showDates;
-            if (v == 'view:priorities') _showPriorities = !_showPriorities;
-            if (v == 'view:tags') _showTags = !_showTags;
-          });
-        }
-      },
-      itemBuilder: (_) {
-        if (isView) {
-          return [
-            CheckedPopupMenuItem(
-                value: 'view:dates',
-                checked: _showDates,
-                child: const Text('Show dates')),
-            CheckedPopupMenuItem(
-                value: 'view:priorities',
-                checked: _showPriorities,
-                child: const Text('Show priorities')),
-            CheckedPopupMenuItem(
-                value: 'view:tags',
-                checked: _showTags,
-                child: const Text('Show tags')),
-          ];
-        }
-        if (isSort) {
-          return [
-            for (final m in _SortMode.values)
-              CheckedPopupMenuItem(
-                  value: 'sort:${m.name}',
-                  checked: _sort == m,
-                  child: Text('Sort by ${m.name}')),
-          ];
-        }
-        return [for (final it in items!) PopupMenuItem(value: it, child: Text(it))];
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Text(label, style: const TextStyle(fontSize: 13)),
-      ),
-    );
-  }
 }
