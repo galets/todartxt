@@ -82,14 +82,27 @@ class _TaskListPageState extends State<TaskListPage> {
     }
 
     idx = idx.where(matches).toList();
+    int completedLast(int a, int b) {
+      final ac = tasks[a].completed ? 1 : 0;
+      final bc = tasks[b].completed ? 1 : 0;
+      return ac.compareTo(bc);
+    }
+
     switch (_sort) {
       case _SortMode.priority:
-        idx.sort((a, b) => (tasks[a].priority ?? 'ZZ')
-            .compareTo(tasks[b].priority ?? 'ZZ'));
+        idx.sort((a, b) =>
+            completedLast(a, b) != 0
+                ? completedLast(a, b)
+                : (tasks[a].priority ?? '')
+                    .compareTo(tasks[b].priority ?? ''));
       case _SortMode.date:
-        idx.sort((a, b) => _dateOf(tasks[a]).compareTo(_dateOf(tasks[b])));
+        idx.sort((a, b) => completedLast(a, b) != 0
+            ? completedLast(a, b)
+            : _dateOf(tasks[a]).compareTo(_dateOf(tasks[b])));
       case _SortMode.project:
-        idx.sort((a, b) => _projOf(tasks[a]).compareTo(_projOf(tasks[b])));
+        idx.sort((a, b) => completedLast(a, b) != 0
+            ? completedLast(a, b)
+            : _projOf(tasks[a]).compareTo(_projOf(tasks[b])));
       case _SortMode.none:
         break;
     }
