@@ -83,8 +83,12 @@ adb shell pm list packages | grep todart
 ## 5. REBUILD :: one-liner
 
 ```bash
-export TC=$HOME/.local/lib/toolchain26 STUDIO=$TC/android-studio SDK=$TC/android-sdk
+export TC=$HOME/.local/lib/toolchain26
+export STUDIO=$TC/android-studio
+export SDK=$TC/android-sdk
 export JAVA_HOME=$STUDIO/jbr ANDROID_SDK_ROOT=$SDK ANDROID_HOME=$SDK
 export PATH=$JAVA_HOME/bin:$SDK/platform-tools:$PATH
 flutter build apk --release && ls -lh build/app/outputs/flutter-apk/app-release.apk
+# or:
+flutter run --device-id=emulator-5554
 ```
