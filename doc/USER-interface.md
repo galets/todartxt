@@ -91,7 +91,7 @@ User interactions (all in-memory + `TaskRepository`, persisted on save):
 6.  **View menu:** hides/shows dates, priorities (badge + inline), tags (pills).
 7.  **Sort menu:** reorders visible list; completed always last.
 8.  **Save:** manual via toolbar/`Ctrl+S`; automatic `saveIfDirty()` (fire-and-forget) on widget `dispose` and on `hidden`/`paused`/`detached` lifecycle events.
-9.  **Startup:** `main(args)` resolves `todo.txt` path from `args[0]`; shows error scaffold if missing/unloadable, spinner while loading.
+9.  **Startup:** async `main(args)` resolves `todo.txt` path from `args[0]`, else default `~/Tasks/todo.txt` (Linux) / `<storage root>/Tasks/todo.txt` (Android, root derived via `getExternalStorageDirectories`, fallback `/storage/emulated/0`); missing directory/file are created, then shows error scaffold if unloadable, spinner while loading.
 
 ## 4. Technical Data Flow
 

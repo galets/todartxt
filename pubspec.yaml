@@ -40,6 +40,7 @@ dependencies:
     git:
       url: https://github.com/galets/todo_txt.git
       ref: master
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

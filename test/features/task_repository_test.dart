@@ -11,12 +11,39 @@ void main() {
       expect(resolveTodoPath(['/tmp/todo.txt']), '/tmp/todo.txt');
     });
 
-    test('returns empty string when no args and no local todo.txt', () {
-      expect(resolveTodoPath([], exists: (_) => false), '');
+    test('returns default path when no args', () {
+      expect(
+        resolveTodoPath([], platform: 'linux', homeDir: '/home/u'),
+        '/home/u/Tasks/todo.txt',
+      );
+      expect(
+        resolveTodoPath([],
+            platform: 'android', storageRoot: '/storage/emulated/0'),
+        '/storage/emulated/0/Tasks/todo.txt',
+      );
     });
 
-    test('uses todo.txt from current directory when no args', () {
-      expect(resolveTodoPath([], exists: (_) => true), 'todo.txt');
+    test('android storage root derived dynamically, fallback emulated/0',
+        () async {
+      expect(
+          storageRootFromAppDir(
+              '/storage/emulated/10/Android/data/com.x/files'),
+          '/storage/emulated/10');
+      expect(
+          storageRootFromAppDir(
+              '/storage/ABCD-1234/Android/data/com.x/files'),
+          '/storage/ABCD-1234');
+      expect(
+          await defaultTodoPathAsync(
+              platform: 'android',
+              externalDirs: () async => [
+                    Directory('/storage/emulated/10/Android/data/com.x/files')
+                  ]),
+          '/storage/emulated/10/Tasks/todo.txt');
+      expect(
+          await defaultTodoPathAsync(
+              platform: 'android', externalDirs: () async => []),
+          '/storage/emulated/0/Tasks/todo.txt');
     });
   });
 
@@ -71,6 +98,14 @@ void main() {
 
     test('save without load throws', () {
       expect(() => TaskRepository().save(), throwsStateError);
+    });
+
+    test('load creates missing parent dirs and empty file', () async {
+      final missing = '${tmp.path}/Tasks/todo.txt';
+      final repo = TaskRepository();
+      await repo.load(missing);
+      expect(repo.tasks, isEmpty);
+      expect(File(missing).existsSync(), isTrue);
     });
   });
 }
