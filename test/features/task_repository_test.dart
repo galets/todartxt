@@ -11,8 +11,12 @@ void main() {
       expect(resolveTodoPath(['/tmp/todo.txt']), '/tmp/todo.txt');
     });
 
-    test('returns empty string when no args', () {
-      expect(resolveTodoPath([]), '');
+    test('returns empty string when no args and no local todo.txt', () {
+      expect(resolveTodoPath([], exists: (_) => false), '');
+    });
+
+    test('uses todo.txt from current directory when no args', () {
+      expect(resolveTodoPath([], exists: (_) => true), 'todo.txt');
     });
   });
 

@@ -68,7 +68,12 @@ class TaskRepository {
 
 /// Resolves the todo.txt file path from command-line args.
 ///
-/// Returns `args.first` when present, otherwise an empty string
+/// Returns `args.first` when present, otherwise `todo.txt` from the
+/// current directory if it exists, otherwise an empty string
 /// so the UI can show a "no file supplied" state.
-String resolveTodoPath(List<String> args) =>
-    args.isNotEmpty ? args.first : '';
+String resolveTodoPath(List<String> args, {bool Function(String)? exists}) {
+  if (args.isNotEmpty) return args.first;
+  const fallback = 'todo.txt';
+  final fileExists = exists ?? ((path) => File(path).existsSync());
+  return fileExists(fallback) ? fallback : '';
+}
