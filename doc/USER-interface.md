@@ -1,78 +1,103 @@
-This document provides a functional and technical specification for implementing a **Todo.txt Client UI**. The goal is to create a desktop-style application that parses, displays, and interacts with a plain-text `todo.txt` file based on the provided specification.
+This document describes the **current state** of the Todart_txt (`To-Dart-TXT`) desktop UI as implemented in `lib/features/tasks/task_list_page.dart` and `lib/main.dart`.
 
 ---
 
-# UI Implementation Specification: Todo.txt Client
+# UI Description: Todo.txt Client (Current)
 
-## 1. Visual Design Philosophy
-*   **Style:** Clean, high-density, "Utility-first" interface (similar to classic productivity tools like Evernote or old-school Windows Mail).
-*   **Typography:** Use a highly legible Sans-Serif font (e.g., Segoe UI, Roboto) for the task list.
-*   **Color Palette:** Neutral backgrounds (light gray/white) with color-coded accents for Priorities (e.g., Red for A, Orange for B) and Contexts/Projects.
+## 1. Visual Design
+
+*   **Style:** Clean, high-density, utility-first desktop layout. Light theme only.
+*   **Colors:**
+    *   App background: `#F3F4F6`, sidebar/toolbar: white.
+    *   Task rows alternate `white` / `#FAFAFA`; selected row `blue.shade50`.
+    *   Priority badge: `A` = red (`red.shade600`), `B` = orange (`orange.shade600`), `C` and below = blue (`blue.shade600`), white bold text, rounded 4px.
+    *   Inline priority text: `(A)` red bold, `(B)` orange bold, others blue bold.
+    *   Dates (`YYYY-MM-DD`): gray (`grey.shade600`, 12.5pt).
+    *   Description: dark gray `#212121`, 13.5pt.
+    *   `@context` pill: teal text (`teal.shade700`, semibold) on `teal.shade50` background with `teal.shade200` border, 10px radius.
+    *   `+project` pill: green text (`green.shade800`, semibold) on `green.shade50` background with `green.shade200` border.
+    *   `key:value` metadata (e.g. `due:2023-05-01`): gray italic, 12.5pt.
+    *   Completed tasks: single `TextSpan` with gray strikethrough; row wrapped in `Opacity(0.55)`.
+*   **Typography:** Default Flutter sans-serif (`RichText` / `ListTile`).
 
 ## 2. Layout Structure
-The interface is divided into four primary functional areas:
 
-### A. Global Menu Bar (Top)
-Standard desktop menu containing:
-*   `File`: Open/Save/Export.
-*   `Actions`: Batch complete, batch delete, move tasks.
-*   `View`: Toggle visibility of metadata (dates, priorities, tags).
-*   `Sorting`: Sort by Priority, Sort by Date, Sort by Project.
-*   `Help`: Documentation.
+There is **no native global menu bar**. The window contains (top to bottom):
 
-### B. Toolbar (Below Menu)
-A horizontal row of icon-based buttons for rapid actions:
-*   **Search (Magnifying Glass):** Focus search bar.
-*   **New Task (Plus Icon):** Add a blank line at the top.
-*   **Edit (Pencil):** Edit selected task.
-*   **Delete (Trash Can):** Remove selected task.
-*   **Complete (Checkmark):** Mark selected task with `x [date]`.
-*   **Undo (Left Arrow):** Revert last action.
-*   **File Management Icons:** Save, Print, Open, etc.
+### A. App / Window Title
 
-### C. Sidebar / Filter Panel (Left)
-A hierarchical navigation tree that allows users to filter the main list.
-*   **Top Level Filters:**
-    *   `All` (Shows everything)
-    *   `Uncategorized` (Tasks without `+` or `@`)
-    *   `Due` (Tasks with `due:YYYY-MM-DD`)
-*   **Contexts (`@`):** A list of all unique `@tags` found in the file. Clicking one filters the list to only show those tasks.
-*   **Projects (`+`):** A list of all unique `+tags`.
-*   **Priorities (`(A)`, `(B)`, etc.):** A list of available priority levels.
-*   **Status:** A "Complete" folder to view finished tasks (tasks starting with `x`).
+*   Window title: `todart_txt` (see screenshot). `MaterialApp.title` is `To-Dart-TXT`.
 
-### D. Main Task List (Center/Right)
-The primary viewing area. Each line represents one task.
+### B. Toolbar (top, white `Container`)
 
-#### Task Line Rendering Logic:
-The parser must split the raw text string into visual components. Do **not** just show raw text; use "Syntax Highlighting" for the following:
+Left to right:
 
-1.  **Priority:** Render as `(A)` in a bold, distinct color (e.g., Red for A, Blue for B).
-2.  **Creation Date:** Render in a muted gray color (e.g., `2023-01-01`).
-3.  **Task Description:** The "Core" text. Render in standard black/dark gray.
-4.  **Projects (`+`):** Render with a blue or green tint (e.g., `+Work`).
-5.  **Contexts (`@`):** Render with a purple or teal tint (e.g., `@office`).
-6.  **Metadata (`key:value`):** Render in a subtle, italicized, or small font (e.g., *due:2023-05-01*).
-7.  **Completed Tasks:** If the line starts with `x`, the entire line should have a strikethrough effect and a lighter opacity (e.g., 50% gray).
+1.  **Search field:** 220x34 `TextField`, hint `Search…`, magnifier prefix. Live-filters list by case-insensitive substring of `Task.toText()`.
+2.  **Search icon** (`Search (/)` tooltip): focuses the search field.
+3.  **Add** (`+`): opens Add-task dialog. Always enabled.
+4.  **Edit** (pencil): opens Edit-task dialog for selected task. Disabled when nothing selected.
+5.  **Delete** (trash): deletes selected task. Disabled when nothing selected.
+6.  **Complete** (checkmark): marks selected task completed via `repository.toggleCompleted()`. Disabled when nothing selected; no-op if already completed.
+7.  **Undo**: calls `repository.undo()`. Disabled when `!canUndo`.
+8.  Vertical divider.
+9.  **Save** (disk): calls `repository.save()` (also `Ctrl+S` via `CallbackShortcuts`). Toast/errors swallowed; refreshes UI.
+10. **Print** (printer): placeholder, `onPressed: () {}`.
+11. **Open** (folder): placeholder, `onPressed: () {}`.
+12. Vertical divider.
+13. **View** (eye icon, `PopupMenuButton`): checkable toggles `Show dates` (default on), `Show priorities` (default on), `Show tags` (default on). Hidden tokens are skipped in `_highlight()`.
+14. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
+15. **Counter** (right-aligned): `${visible.length}/${tasks.length} tasks`, 12pt gray.
+
+### C. Sidebar / Filter Panel (left, fixed 230px, white)
+
+`ListView` with section headers (`FILTERS`, `CONTEXTS`, `PROJECTS`, `PRIORITIES`, `STATUS`; 10pt bold gray, letter-spacing 0.8). Each row is a dense `ListTile` (16px leading icon, 13pt label, gray count trailing, `blue.shade50` when active). Clicking sets `_filter` and clears selection.
+
+*   **FILTERS:**
+    *   `All` (inbox icon) — everything.
+    *   `Uncategorized` (label_off icon) — `context.isEmpty && project.isEmpty`.
+    *   `Due` (event icon) — `toText()` contains `due:\S+`. Count 0 in screenshot.
+*   **CONTEXTS:** one row per unique `Task.context` value, sorted alphabetically. Label `@name` with alternate_email icon, count of matching tasks. Visible in screenshot: `@auto(1)`, `@family(2)`, `@finance(6)`, `@galets.net(1)`, `@home(6)`, `@it(28)`, `@me(1)`.
+*   **PROJECTS:** one row per unique `Task.project` value (`+name`, folder icon). Empty in screenshot because the sample `todo.txt` uses no `+tags`.
+*   **PRIORITIES:** one row per non-null `Task.priority`, sorted (`(A)(4)`, `(B)(5)`, `(C)(4)`, `(D)(2)` in screenshot). Flag icon.
+*   **STATUS:** `Complete` (check_circle icon) — `t.completed`.
+
+### D. Main Task List (center/right, expanded)
+
+*   Empty state: `Center(child: Text('No tasks match filter'))`.
+*   Otherwise `ListView.builder` over `_visibleIndices` (filter + search + sort applied).
+*   Each row: `GestureDetector` + `Container` (horizontal 8, vertical 5) + `Row`:
+    *   Leading `Checkbox` (`visualDensity.compact`) bound to `t.completed`; `onChanged` calls `repository.toggleCompleted(i)`.
+    *   Priority badge (only if `_showPriorities && t.priority != null && !t.completed`): colored container + white bold 11pt letter.
+    *   Expanded `Opacity` + `RichText` from `_highlight(raw, t)`.
+*   **Task line rendering (`_highlight`):** token regex `^(\([A-Z]\)|x\b)|\d{4}-\d{2}-\d{2}|[+@]\S+|\S+:\S+|\(.\)|\S+|\s+`. `+`/`@` tokens become tappable `WidgetSpan` pills that set the sidebar filter to that context/project. Other tokens are plain `TextSpan`s with styles from §1. Note: screenshot duplicates badge + inline `(A)` text because both are shown.
+
+### E. Floating Action Button
+
+*   Bottom-right `FloatingActionButton` (`+`, tooltip `Add task`): same as toolbar Add.
 
 ---
 
 ## 3. Interaction Logic & Parsing Rules
 
-### Parsing Engine Requirements
-The developer must implement a regex-based parser that follows these strict rules:
-*   **Priority Rule:** Must check for `^[A-Z] ` inside parentheses at the very start of the line.
-*   **Completion Rule:** If a line starts with `x `, it is "Completed." The next date is the `Completion Date`. Any subsequent date is the `Creation Date`.
-*   **Tag Rule:** `+` and `@` must be preceded by a space and followed by non-whitespace characters. They can appear anywhere after the priority/date prefix.
-*   **Metadata Rule:** Any `string:string` pattern must be extracted as metadata.
+Parser/engine is the `todo_txt` package (`Task.fromText` / `Task.toText`), not hand-rolled regex:
 
-### User Interactions
-1.  **Single Click:** Selects the task.
-2.  **Double Click:** Opens an inline text editor to modify the raw string.
-3.  **Clicking a Tag in the Task List:** Should automatically update the Sidebar Filter to that specific Project or Context.
-4.  **Checkbox Toggle (Optional):** Clicking a virtual checkbox at the start of an incomplete task should automatically prepend `x [today's date] ` to the line in the text file.
+*   Priority, completion (`x ` + dates), `@context`, `+project`, `key:value` are derived from `Task` fields; `Due` filter and date sort additionally regex raw text (`due:\S+`, `\d{4}-\d{2}-\d{2}`).
+
+User interactions (all in-memory + `TaskRepository`, persisted on save):
+
+1.  **Single click:** selects task (blue highlight; enables Edit/Delete/Complete).
+2.  **Double click:** opens `AlertDialog` (`Add task` / `Edit task`) with a `TextField` (hint `(A) Call mom +Family @phone due:2023-05-01`), `Cancel`/`Save`; Save parses via `Task.fromText` and calls `repository.add` / `repository.update`.
+3.  **Clicking a `@`/`+` pill in the task list:** sets `_filter` to that context/project.
+4.  **Checkbox:** toggles completion immediately.
+5.  **Search:** live substring filter combined with sidebar filter.
+6.  **View menu:** hides/shows dates, priorities (badge + inline), tags (pills).
+7.  **Sort menu:** reorders visible list; completed always last.
+8.  **Save:** manual via toolbar/`Ctrl+S`; automatic `saveIfDirty()` (fire-and-forget) on widget `dispose` and on `hidden`/`paused`/`detached` lifecycle events.
+9.  **Startup:** `main(args)` resolves `todo.txt` path from `args[0]`; shows error scaffold if missing/unloadable, spinner while loading.
 
 ## 4. Technical Data Flow
-1.  **Load:** Read `.txt` file $\rightarrow$ Parse lines into `Task` objects $\rightarrow$ Populate Sidebar $\rightarrow$ Render List.
-2.  **Filter:** User clicks `@home` $\rightarrow$ UI filters `Task` objects where `context.contains("@home")` $\rightarrow$ Re-renders List.
-3.  **Save:** Modify `Task` object $\rightarrow$ Serialize `Task` back to string format $\rightarrow$ Overwrite `.txt` file.
+
+1.  **Load:** CLI path → `TaskRepository.load(path)` → `Task.fromText` per line → `TaskListPage`.
+2.  **Derive:** `_contexts` / `_projects` / `_priorities` sets + per-filter counts computed from `repository.tasks` on each build.
+3.  **Filter/sort/search:** `_visibleIndices` (filter → search → sort with completed-last) → `ListView`.
+4.  **Mutate:** dialog/checkbox/toolbar → `repository.add/update/removeAt/toggleCompleted/undo` → `setState` refresh → explicit or auto `save()`.
