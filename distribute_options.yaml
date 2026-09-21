@@ -10,6 +10,7 @@ releases:
         package:
           platform: android
           target: apk
+      # this build type is for future use
       - name: stable-android-aab
         package:
           platform: android

@@ -16,10 +16,6 @@ find dist/ -name '*.deb'
 dart pub global activate flutter_distributor
 export PATH="$PATH:$HOME/.pub-cache/bin"
 
-flutter_distributor release --name=stable --jobs=stable-android-apk,stable-android-aab
-find dist/ -name '*.apk' -o -name '*.aab'
+flutter_distributor release --name=stable --jobs=stable-android-apk
+find dist/ -name '*.apk'
 ```
-
-> NOTE: `android/app/build.gradle.kts` currently signs the release build
-> with the debug keys. Add your own signing config before publishing
-> (e.g. to Google Play, which requires the `.aab`).
