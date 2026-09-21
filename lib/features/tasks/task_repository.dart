@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:todo_txt/todo_txt.dart';
 
 import 'todo_storage.dart';
+import 'todartxt_config.dart';
 
 /// Loads/saves tasks from the file supplied on the command line.
 ///
@@ -183,12 +184,16 @@ Future<String> androidStorageRoot(
 }
 
 /// Async default path: on Android uses the app-private documents directory
-/// (always writable under scoped storage), elsewhere same as [defaultTodoPath].
+/// (always writable under scoped storage), on Linux reads (creating when
+/// missing) `~/.config/todartxt.yaml`, elsewhere same as [defaultTodoPath].
 /// [appDocDir] / [externalDirs] are injectable for tests.
 Future<String> defaultTodoPathAsync(
     {String? platform,
     String? homeDir,
     String? appDocDir,
+    String? configPath,
+    String? xdgConfigHome,
+    Map<String, String>? env,
     Future<List<Directory?>?> Function()? externalDirs}) async {
   final isAndroid =
       platform != null ? platform == 'android' : Platform.isAndroid;
@@ -202,7 +207,21 @@ Future<String> defaultTodoPathAsync(
     final root = await androidStorageRoot(externalDirs: externalDirs);
     return '$root/Tasks/todo.txt';
   }
-  return defaultTodoPath(platform: platform, homeDir: homeDir);
+  final fallback = defaultTodoPath(platform: platform, homeDir: homeDir);
+  final isLinux =
+      platform != null ? platform == 'linux' : Platform.isLinux;
+  if (!isLinux) return fallback;
+  try {
+    return await ensureTodotxtConfig(
+      fallbackTodoPath: fallback,
+      configPath: configPath,
+      homeDir: homeDir,
+      xdgConfigHome: xdgConfigHome,
+      env: env,
+    );
+  } catch (_) {
+    return fallback;
+  }
 }
 
 /// Resolves the todo.txt file path from command-line args.
@@ -228,6 +247,9 @@ Future<String> resolveTodoPathAsync(
   String? platform,
   String? homeDir,
   String? appDocDir,
+  String? configPath,
+  String? xdgConfigHome,
+  Map<String, String>? env,
   Future<List<Directory?>?> Function()? externalDirs,
 }) async {
   if (args.isNotEmpty) return args.first;
@@ -235,5 +257,8 @@ Future<String> resolveTodoPathAsync(
       platform: platform,
       homeDir: homeDir,
       appDocDir: appDocDir,
+      configPath: configPath,
+      xdgConfigHome: xdgConfigHome,
+      env: env,
       externalDirs: externalDirs);
 }
