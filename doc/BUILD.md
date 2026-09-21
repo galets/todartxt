@@ -16,7 +16,7 @@ find dist/ -name '*.deb'
 dart pub global activate flutter_distributor
 export PATH="$PATH:$HOME/.pub-cache/bin"
 
-flutter_distributor release --name=stable --jobs=stable-android-apk
+flutter_distributor release --name=stable --jobs=stable-android-apk,stable-android-aab
 find dist/ -name '*.apk' -o -name '*.aab'
 ```
 
