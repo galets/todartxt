@@ -1,8 +1,8 @@
 display_name: TodartTxt
 package_name: todart-txt
 maintainer:
-  name: TodartTxt
-  email: todart@example.com
+  name: galets
+  email: todart@x11.work
 priority: optional
 section: utils
 installed_size: 40000
