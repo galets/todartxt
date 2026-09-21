@@ -48,6 +48,12 @@ void main() {
       tmp.deleteSync(recursive: true);
     }
   });
+  test('isSafUri distinguishes content URIs from file paths', () {
+    expect(isSafUri('content://org.owncloud.documents/document/7'), isTrue);
+    expect(isSafUri('/storage/emulated/0/Tasks/todo.txt'), isFalse);
+    expect(isSafUri(''), isFalse);
+  });
+
   test('saveSafUri persists document URI for ACTION_OPEN_DOCUMENT picks',
       () async {
     SharedPreferences.setMockInitialValues({});

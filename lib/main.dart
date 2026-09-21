@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:saf/saf.dart';
 
 import 'features/tasks/task_list_page.dart';
 import 'features/tasks/task_repository.dart';
 
+import 'features/tasks/saf_bindings.dart';
 import 'features/tasks/storage_location.dart';
 
 /// Entry point.
@@ -69,7 +71,10 @@ class _HomeState extends State<_Home> {
       return;
     }
     _loading = true;
-    _repo.load(widget.todoPath).then((_) {
+    final repoFuture = isSafUri(widget.todoPath)
+        ? _repo.loadFromStorage(safStorageForUri(widget.todoPath))
+        : _repo.load(widget.todoPath);
+    repoFuture.then((_) {
       if (mounted) setState(() => _loading = false);
     }).catchError((Object e) {
       if (mounted) {
@@ -79,6 +84,31 @@ class _HomeState extends State<_Home> {
         });
       }
     });
+  }
+
+  Future<void> _pickReplacementFile() async {
+    try {
+      final picked = await Saf().pickFile(
+        mimeTypes: const ['text/plain', 'text/*', '*/*'],
+        persistablePermission: true,
+      );
+      if (picked == null) return;
+      await saveSafUri(picked.uri);
+      if (!mounted) return;
+      setState(() {
+        _error = null;
+        _loading = true;
+      });
+      await _repo.loadFromStorage(safStorageForUri(picked.uri));
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load file: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -99,7 +129,22 @@ class _HomeState extends State<_Home> {
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('To-Dart-TXT')),
-        body: Center(child: Text(_error!)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_error!),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _pickReplacementFile,
+                  child: const Text('Choose file'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     if (_loading) {

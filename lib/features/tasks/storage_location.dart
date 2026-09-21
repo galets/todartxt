@@ -52,6 +52,12 @@ Future<String> effectiveTodoPath(
   );
 }
 
+/// True when [path] is a SAF document URI (`content://…`) rather than a
+/// plain filesystem path. Such URIs must go through the SAF backend —
+/// never `dart:io File` (which fails with `FileSystemException: Creation
+/// failed … errno 30` on `content:` paths).
+bool isSafUri(String path) => path.startsWith('content://');
+
 /// Persist a user-picked todo.txt document URI (SAF `ACTION_OPEN_DOCUMENT`).
 /// Unlike `ACTION_OPEN_DOCUMENT_TREE` (folder pick), every DocumentsProvider
 /// — including ownCloud — supports file picking, so all providers stay
