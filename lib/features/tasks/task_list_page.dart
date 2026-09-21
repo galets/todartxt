@@ -1,9 +1,9 @@
-import 'package:file_picker/file_picker.dart' show FilePickerPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:saf/saf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_txt/todo_txt.dart';
+import 'saf_bindings.dart';
 import 'storage_location.dart';
 import 'task_repository.dart';
 
@@ -78,19 +78,25 @@ class _TaskListPageState extends State<TaskListPage>
     }
   }
 
+  /// Picks the todo.txt *file* via SAF `ACTION_OPEN_DOCUMENT`.
+  ///
+  /// The old folder picker (`ACTION_OPEN_DOCUMENT_TREE` via
+  /// `file_picker.getDirectoryPath`) hid providers without tree support
+  /// (notably ownCloud), even though they appear in the system Files app.
+  /// File picking is supported by every DocumentsProvider, so Drive,
+  /// ownCloud/Nextcloud and local storage all stay visible.
   Future<void> _pickStorageDir() async {
-    final dir = await FilePickerPlatform.instance.getDirectoryPath(
-      dialogTitle: 'Choose shared folder for todo.txt (e.g. Tasks)',
+    final picked = await Saf().pickFile(
+      mimeTypes: const ['text/plain', 'text/*', '*/*'],
+      persistablePermission: true,
     );
-    if (dir == null) return;
-    final from = widget.repository.path;
+    if (picked == null) return;
     try {
-      final to = await saveCustomDir(dir);
-      if (from != null) await migrateTodoFile(from, to);
-      await widget.repository.load(to);
+      await saveSafUri(picked.uri);
+      await widget.repository.loadFromStorage(safStorageForUri(picked.uri));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('todo.txt location: $to')),
+          SnackBar(content: Text('todo.txt location: ${picked.uri}')),
         );
       }
     } catch (_) {}
@@ -113,7 +119,7 @@ class _TaskListPageState extends State<TaskListPage>
               Navigator.of(ctx).pop();
               _pickStorageDir();
             },
-            child: const Text('Choose folder'),
+            child: const Text('Choose file'),
           ),
           // TEMPORARY DEBUG: one-time SAF grant for the headless smoke test
           // (takes persistable URI permission, no other effect).

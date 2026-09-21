@@ -7,6 +7,7 @@ import 'task_repository.dart';
 
 const storagePathPrefsKey = 'todo_txt_custom_path';
 const storageDirPrefsKey = 'todo_txt_custom_dir';
+const safUriPrefsKey = 'todo_txt_saf_uri';
 
 /// Effective todo.txt location.
 ///
@@ -51,7 +52,21 @@ Future<String> effectiveTodoPath(
   );
 }
 
+/// Persist a user-picked todo.txt document URI (SAF `ACTION_OPEN_DOCUMENT`).
+/// Unlike `ACTION_OPEN_DOCUMENT_TREE` (folder pick), every DocumentsProvider
+/// — including ownCloud — supports file picking, so all providers stay
+/// visible in the system picker.
+Future<String> saveSafUri(String uri, {SharedPreferences? prefs}) async {
+  final p = prefs ?? await SharedPreferences.getInstance();
+  await p.setString(safUriPrefsKey, uri);
+  await p.setString(storagePathPrefsKey, uri);
+  return uri;
+}
+
 /// Persist a user-picked shared folder (SAF tree) as `<dir>/todo.txt`.
+/// Legacy local-folder path; prefer [saveSafUri] on Android since
+/// `ACTION_OPEN_DOCUMENT_TREE` hides providers without tree support
+/// (e.g. ownCloud).
 Future<String> saveCustomDir(String dir, {SharedPreferences? prefs}) async {
   final path = '$dir/todo.txt';
   final p = prefs ?? await SharedPreferences.getInstance();

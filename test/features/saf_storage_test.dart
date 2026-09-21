@@ -48,4 +48,13 @@ void main() {
       tmp.deleteSync(recursive: true);
     }
   });
+  test('saveSafUri persists document URI for ACTION_OPEN_DOCUMENT picks',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    const uri = 'content://com.owncloud.documents/document/123';
+    await saveSafUri(uri, prefs: prefs);
+    expect(prefs.getString(safUriPrefsKey), uri);
+    expect(prefs.getString(storagePathPrefsKey), uri);
+  });
 }

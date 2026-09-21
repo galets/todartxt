@@ -43,7 +43,7 @@ Wide (desktop) — left to right:
 7.  **Undo**: calls `repository.undo()`. Disabled when `!canUndo`.
 8.  Vertical divider.
 9.  **Save** (disk): calls `repository.save()` (also `Ctrl+S` via `CallbackShortcuts`). Toast/errors swallowed; refreshes UI.
-9b. **Storage location** (folder icon, tooltip `Storage location`): shows dialog with current `todo.txt` path + `Choose folder` button. Opens SAF directory picker (`FilePickerPlatform.instance.getDirectoryPath()`); persists choice in `SharedPreferences` (`todo_txt_custom_dir`/`todo_txt_custom_path`), migrates existing file content, reloads repo, shows `SnackBar` with new path. On narrow screens also under **More actions → Storage location…**.
+9b. **Storage location** (folder icon, tooltip `Storage location`): shows dialog with current `todo.txt` path + `Choose file` button. Opens SAF file picker (`ACTION_OPEN_DOCUMENT` via `Saf().pickFile()`, so Drive, ownCloud/Nextcloud and local storage all stay visible — the old folder picker `ACTION_OPEN_DOCUMENT_TREE` hid ownCloud); persists URI in `SharedPreferences` (`todo_txt_saf_uri`), loads via `SafTodoStorage`, shows `SnackBar` with new URI. On narrow screens also under **More actions → Storage location…**.
 10. Vertical divider.
 11. **View** (eye icon, `PopupMenuButton`): checkable toggles `Show dates` (default on), `Show priorities` (default on), `Show tags` (default on). Hidden tokens are skipped in `_highlight()`.
 12. **Sort** (sort icon, `PopupMenuButton<_SortMode>`): `none`, `priority` (default), `date`, `project`. Completed tasks always sink to bottom (`completedLast` comparator); then priority string compare / first `YYYY-MM-DD` in text (`9999-99-99` fallback) / first project (`~~~` fallback for none).
