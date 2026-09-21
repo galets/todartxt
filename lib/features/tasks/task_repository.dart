@@ -4,15 +4,21 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:todo_txt/todo_txt.dart';
 
+import 'todo_storage.dart';
+
 /// Loads/saves tasks from the file supplied on the command line.
 ///
 /// Wraps [TodoTxt] (stream-based load/save) so the UI stays decoupled and testable.
+/// Persistence goes through a [TodoStorage] backend (plain file on
+/// Linux/legacy, SAF document URI on Android slice 2).
 class TaskRepository {
   String? _path;
+  TodoStorage? _storage;
   List<Task> _tasks = [];
   final List<List<Task>> _history = [];
 
   String? get path => _path;
+  TodoStorage? get storage => _storage;
   List<Task> get tasks => List.unmodifiable(_tasks);
   bool get canUndo => _history.isNotEmpty;
   bool _dirty = false;
@@ -24,31 +30,30 @@ class TaskRepository {
   ///
   /// Creates parent directories and an empty file when they are missing.
   Future<void> load(String path) async {
-    _path = path;
+    await loadFromStorage(FileTodoStorage(path));
+  }
+
+  /// Loads tasks from an arbitrary [TodoStorage] backend (file or SAF).
+  Future<void> loadFromStorage(TodoStorage storage) async {
+    _storage = storage;
+    _path = storage.displayName;
     _history.clear();
     _dirty = false;
-    final file = File(path);
-    if (!await file.exists()) {
-      await file.parent.create(recursive: true);
-      await file.writeAsString('');
-      _tasks = [];
-      return;
-    }
-    final lines = file.openRead().transform(utf8.decoder).transform(const LineSplitter());
+    final text = await storage.readAll();
+    final lines =
+        Stream<String>.fromIterable(const LineSplitter().convert(text));
     _tasks = await TodoTxt.load(lines);
   }
 
   /// Persists current tasks back to the file used for loading.
   Future<void> save() async {
-    final path = _path;
-    if (path == null) throw StateError('No file loaded');
-    await File(path).parent.create(recursive: true);
-    final sink = File(path).openWrite();
-    try {
-      await TodoTxt.save(_tasks, sink);
-    } finally {
-      await sink.close();
+    final storage = _storage;
+    if (storage == null) throw StateError('No file loaded');
+    final buf = StringBuffer();
+    for (final t in _tasks) {
+      buf.writeln(t.toText());
     }
+    await storage.writeAll(buf.toString());
     _dirty = false;
   }
 
