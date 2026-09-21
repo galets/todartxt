@@ -1,17 +1,67 @@
-# todart_txt
+# ToDartTxt — plain-text `todo.txt`
 
-A new Flutter project.
+<!-- [![Release](https://img.shields.io/github/v/release/galets/todartxt)](https://github.com/galets/todartxt/releases) -->
+[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Linux-blue)](./linux)
+[![License](https://img.shields.io/github/license/galets/todartxt)](./LICENSE)
+[![todo.txt](https://img.shields.io/badge/format-todo.txt-green)](http://todotxt.org)
 
-## Getting Started
+![Demo](branding/demo.png)
 
-This project is a starting point for a Flutter application.
+A Flutter UI for [todo.txt](http://todotxt.org/). Your tasks stay in one plain-text
+`todo.txt` — no database, no lock-in, fully greppable and git-friendly.
 
-A few resources to get you started if this is your first Flutter project:
+Runs on **Android + Linux**. On Android, open your file via the System file picker
+(SAF `DocumentsProvider`), so cloud providers such as **ownCloud / Nextcloud**,
+Google Drive, or local storage all work through the same path. On Linux it is a
+plain file: CLI arg → remembered dir → `~/Tasks/todo.txt`.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Edit `~/.config/todartxt.yaml` for alternative file location
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Key Features
+
+* **Full todo.txt syntax** — priorities `(A)-(Z)`, `x` completed + dates,
+  `@context`, `+project`, `key:value` incl. `due:YYYY-MM-DD`.
+* **Single-window task UI** — toolbar (Search, Add/Edit/Delete/Complete,
+  Priority +/-, Undo, Save, Storage, View, Sort, counter), sidebar filters
+  (`All / Due / Contexts / Projects / Priorities / Complete`),
+  rich rows (priority badge, tappable `@`/`+` pills, strikethrough done).
+* **Filter, search, sort** — live substring search + sidebar; sort by
+  `priority (default) / date / project`, completed-last toggle.
+* **Safe local storage** — atomic tmp+rename writes, symlink-preserving,
+  autosave on pause/hide, manual `Ctrl+S`, undo history, sample `todo.txt` included.
+* **Android SAF backend** — `ACTION_OPEN_DOCUMENT` picker, URI persisted in
+  `SharedPreferences`, works with ownCloud/Nextcloud, Drive, local files.
+
+## Quick Start
+
+```sh
+# Linux desktop
+flutter run -d linux -- todo.txt
+flutter build linux
+
+# Android (device or emulator)
+flutter run -d android
+flutter build apk --release
+```
+
+Pick storage: **Storage location** button → file picker (Android) or path
+(Linux). File is remembered across restarts.
+
+Sample `todo.txt`:
+
+```txt
+(A) Call Alice @phone +family due:2026-09-22
+(B) Fix login bug +dayjob @work due:2026-09-23
+x 2026-09-20 Buy milk +chores @errands
+```
+
+## Docs
+
+* `doc/USER-interface.md` — UI spec
+* `doc/SPECS.md` — platform + logging spec
+* `doc/STORAGE-access-framework.md` — SAF / ownCloud design
+* `doc/ANDROID.md`, `doc/BUILD.md` — build notes
+
+## License
+
+See [LICENSE](./LICENSE).
