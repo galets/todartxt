@@ -47,12 +47,23 @@ class _HomeState extends State<_Home> {
   late final TaskRepository _repo;
   String? _error;
   bool _loading = false;
+  bool _showingSplash = true;
 
   @override
   void initState() {
     super.initState();
     _repo = widget.repositoryOverride ?? TaskRepository();
-    if (widget.repositoryOverride != null) return;
+    if (widget.repositoryOverride != null || widget.todoPath.isEmpty) {
+      // Widget tests inject a repository: skip timed splash.
+      _showingSplash = false;
+      if (widget.repositoryOverride != null) return;
+    } else {
+      // Show full-size square splash briefly so Android 12+ system splash
+      // (which circle-crops icons) stays hidden via transparent animated icon.
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) setState(() => _showingSplash = false);
+      });
+    }
     if (widget.todoPath.isEmpty) {
       _error = 'No todo.txt file supplied on command line.';
       return;
@@ -72,6 +83,19 @@ class _HomeState extends State<_Home> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showingSplash) {
+      // Full-size square branding icon, no circular masking.
+      return const Scaffold(
+        body: Center(
+          child: Image(
+            image: AssetImage('assets/splash_image.png'),
+            width: 240,
+            height: 240,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('To-Dart-TXT')),
@@ -80,7 +104,21 @@ class _HomeState extends State<_Home> {
     }
     if (_loading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image(
+                image: AssetImage('assets/splash_image.png'),
+                width: 240,
+                height: 240,
+                fit: BoxFit.contain,
+              ),
+              SizedBox(height: 24),
+              CircularProgressIndicator(),
+            ],
+          ),
+        ),
       );
     }
     return TaskListPage(repository: _repo);
