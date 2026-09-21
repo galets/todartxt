@@ -38,6 +38,8 @@ Wide (desktop) — left to right:
 2.  **Search icon** (`Search (/)` tooltip): focuses the search field.
 3.  **Add** (`+`): opens Add-task dialog. Always enabled.
 4.  **Edit** (pencil): opens Edit-task dialog for selected task. Disabled when nothing selected.
+4b. **Increase priority** (up arrow): shifts selected task priority toward `A` (`B`→`A`; no priority→`Z`). Disabled when nothing selected or priority already `A`.
+4c. **Decrease priority** (down arrow): shifts selected task priority toward `Z` (`A`→`B`). Disabled when nothing selected, when task has no priority, or when priority already `Z`.
 5.  **Delete** (trash): deletes selected task. Disabled when nothing selected.
 6.  **Complete** (checkmark): marks selected task completed via `repository.toggleCompleted()`. Disabled when nothing selected; no-op if already completed.
 7.  **Undo**: calls `repository.undo()`. Disabled when `!canUndo`.

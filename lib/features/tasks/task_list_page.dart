@@ -301,6 +301,36 @@ class _TaskListPageState extends State<TaskListPage>
     _refresh();
   }
 
+  String? get _selectedPriority => _selected == null
+      ? null
+      : widget.repository.tasks[_selected!].priority;
+
+  bool get _canIncreasePriority =>
+      _selected != null && _selectedPriority != 'A';
+  bool get _canDecreasePriority =>
+      _selected != null &&
+      _selectedPriority != null &&
+      _selectedPriority != 'Z';
+
+  static String _shiftedPriority(String? current, int delta) {
+    if (current == null) return 'Z';
+    final code = current.codeUnitAt(0) + delta;
+    return String.fromCharCode(code.clamp(65, 90));
+  }
+
+  Future<void> _shiftPriority(int delta) async {
+    if (_selected == null) return;
+    if (delta < 0 && !_canIncreasePriority) return;
+    if (delta > 0 && !_canDecreasePriority) return;
+    try {
+      final t = widget.repository.tasks[_selected!];
+      final copy = Task.fromText(t.toText());
+      copy.priority = _shiftedPriority(t.priority, delta);
+      await widget.repository.update(_selected!, copy);
+    } catch (_) {}
+    _refresh();
+  }
+
   // --- syntax highlighting ---
   InlineSpan _highlight(String raw, Task t) {
     if (t.completed) {
@@ -524,6 +554,10 @@ class _TaskListPageState extends State<TaskListPage>
             _tool(Icons.edit, 'Edit', _selected == null
                 ? null
                 : () => _showEditDialog(index: _selected)),
+            _tool(Icons.arrow_upward, 'Increase priority',
+                _canIncreasePriority ? () => _shiftPriority(-1) : null),
+            _tool(Icons.arrow_downward, 'Decrease priority',
+                _canDecreasePriority ? () => _shiftPriority(1) : null),
             _tool(Icons.delete, 'Delete', _selected == null ? null : _deleteSelected),
             _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
             _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
@@ -571,6 +605,10 @@ class _TaskListPageState extends State<TaskListPage>
                   switch (v) {
                     case 'edit':
                       await _showEditDialog(index: _selected);
+                    case 'increase':
+                      await _shiftPriority(-1);
+                    case 'decrease':
+                      await _shiftPriority(1);
                     case 'delete':
                       await _deleteSelected();
                     case 'complete':
@@ -594,6 +632,14 @@ class _TaskListPageState extends State<TaskListPage>
                       value: 'edit',
                       enabled: _selected != null,
                       child: const Text('Edit')),
+                  PopupMenuItem(
+                      value: 'increase',
+                      enabled: _canIncreasePriority,
+                      child: const Text('Increase priority')),
+                  PopupMenuItem(
+                      value: 'decrease',
+                      enabled: _canDecreasePriority,
+                      child: const Text('Decrease priority')),
                   PopupMenuItem(
                       value: 'delete',
                       enabled: _selected != null,
