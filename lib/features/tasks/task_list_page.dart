@@ -71,7 +71,12 @@ class _TaskListPageState extends State<TaskListPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached ||
+    if (state == AppLifecycleState.resumed) {
+      widget.repository.reload().then((_) {
+        if (mounted) _refresh();
+      }).catchError((_) {});
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused) {
       widget.repository.saveIfDirty().catchError((_) {});

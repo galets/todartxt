@@ -63,6 +63,17 @@ class TaskRepository {
     await save();
   }
 
+  /// Re-reads the file from the current storage backend.
+  ///
+  /// Used when the app regains focus on Android so external edits are
+  /// picked up. Any unsaved changes are flushed first via [saveIfDirty].
+  Future<void> reload() async {
+    final storage = _storage;
+    if (storage == null) return;
+    await saveIfDirty();
+    await loadFromStorage(storage);
+  }
+
   Future<void> toggleCompleted(int index) async {
     _ensureLoaded();
     _pushHistory();
