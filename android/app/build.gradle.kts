@@ -48,3 +48,12 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// integration_test pulls espresso-core:3.2+ whose AAR has no `namespace`,
+// breaking manifest merger on AGP 8+. Force a namespaced release.
+configurations.all {
+    resolutionStrategy {
+        force("androidx.test.espresso:espresso-core:3.5.1")
+        force("androidx.test.espresso:espresso-idling-resource:3.5.1")
+    }
+}

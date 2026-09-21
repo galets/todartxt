@@ -1,6 +1,8 @@
 import 'package:file_picker/file_picker.dart' show FilePickerPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:saf/saf.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_txt/todo_txt.dart';
 import 'storage_location.dart';
 import 'task_repository.dart';
@@ -113,9 +115,43 @@ class _TaskListPageState extends State<TaskListPage>
             },
             child: const Text('Choose folder'),
           ),
+          // TEMPORARY DEBUG: one-time SAF grant for the headless smoke test
+          // (takes persistable URI permission, no other effect).
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _grantSafTestDir();
+            },
+            child: const Text('Grant SAF test folder (DEBUG)'),
+          ),
         ],
       ),
     );
+  }
+
+  /// TEMPORARY DEBUG: opens the system directory picker once so the
+  /// hardcoded `content://` tree used by the headless smoke test gets a
+  /// persistable URI grant. Persists the granted URI string; remove before
+  /// release (real location picker in doc §4 dialog 1 replaces this).
+  Future<void> _grantSafTestDir() async {
+    try {
+      final picked = await Saf().pickDirectory(persistablePermission: true);
+      if (picked == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('todo_txt_saf_uri', picked.uri);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('SAF grant: ${picked.uri}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('SAF grant failed: $e')),
+        );
+      }
+    }
+    _refresh();
   }
 
   Future<void> _save() async {
