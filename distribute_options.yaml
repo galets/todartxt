@@ -6,3 +6,12 @@ releases:
         package:
           platform: linux
           target: deb
+      - name: stable-android-apk
+        package:
+          platform: android
+          target: apk
+      # this build type is for future use
+      - name: stable-android-aab
+        package:
+          platform: android
+          target: aab
