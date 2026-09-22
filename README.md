@@ -1,6 +1,6 @@
 # ToDartTxt — plain-text `todo.txt`
 
-<!-- [![Release](https://img.shields.io/github/v/release/galets/todartxt)](https://github.com/galets/todartxt/releases) -->
+[![Release](https://img.shields.io/github/v/release/galets/todartxt)](https://github.com/galets/todartxt/releases)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Linux-blue)](./linux)
 [![License](https://img.shields.io/github/license/galets/todartxt)](./LICENSE)
 [![todo.txt](https://img.shields.io/badge/format-todo.txt-green)](http://todotxt.org)
