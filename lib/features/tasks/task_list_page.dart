@@ -782,14 +782,16 @@ class _TaskListPageState extends State<TaskListPage>
                             crossAxisAlignment:
                                 CrossAxisAlignment.stretch,
                             children: [
-                              Container(
-                                width: 230,
+                              Material(
                                 color: Colors.white,
-                                child: ListView(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 4),
-                                  children:
-                                      _sidebarChildren(tasks),
+                                child: SizedBox(
+                                  width: 230,
+                                  child: ListView(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4),
+                                    children:
+                                        _sidebarChildren(tasks),
+                                  ),
                                 ),
                               ),
                               const VerticalDivider(width: 1),
