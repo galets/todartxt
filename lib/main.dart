@@ -86,6 +86,29 @@ class _HomeState extends State<_Home> {
     });
   }
 
+  Future<void> _retryLoad() async {
+    if (widget.todoPath.isEmpty) return;
+    setState(() {
+      _error = null;
+      _loading = true;
+    });
+    try {
+      if (isSafUri(widget.todoPath)) {
+        await _repo.loadFromStorage(safStorageForUri(widget.todoPath));
+      } else {
+        await _repo.load(widget.todoPath);
+      }
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load ${widget.todoPath}: $e';
+        });
+      }
+    }
+  }
+
   Future<void> _pickReplacementFile() async {
     try {
       final picked = await Saf().pickFile(
@@ -137,6 +160,11 @@ class _HomeState extends State<_Home> {
               children: [
                 Text(_error!),
                 const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _retryLoad,
+                  child: const Text('Retry'),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: _pickReplacementFile,
                   child: const Text('Choose file'),

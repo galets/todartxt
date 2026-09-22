@@ -22,19 +22,69 @@ import 'saf_todo_storage.dart';
 ///   (ownCloud) that re-open loses the stream and leaves a 0-byte file.
 /// Stat: `stat(uri).modified`.
 ///
+/// Every provider call goes through [withProviderRetry]: ownCloud's
+/// `DocumentsStorageProvider` throws `IllegalStateException: KoinApplication
+/// has not been started` when it is queried cold (right after force-stop,
+/// before its DI graph is up). That failure is transient — the provider
+/// warms up within a second or two — so a single attempt at app startup
+/// would spuriously fail the load. Retries turn it into a slightly slower
+/// successful load.
+///
 /// Injectable [rawWrite] exists so tests can verify descriptor writes
 /// without touching libc.
-SafTodoStorage safStorageForUri(String uri, [Saf? saf]) {
+SafTodoStorage safStorageForUri(
+  String uri, [
+  Saf? saf,
+  Future<void> Function(Duration)? sleeper,
+]) {
   final s = saf ?? Saf();
+  final sleep = sleeper ?? Future.delayed;
   return SafTodoStorage(
     uri,
-    readBytes: (u) async => utf8.decode(await s.readFileBytes(u)),
-    writeBytes: (u, text) async {
-      await s.withFileDescriptor(u, 'wt', (fd) async {
-        await writeToFd(fd.fd, utf8.encode(text));
-      });
-    },
+    readBytes: (u) async => withProviderRetry(
+      () async => utf8.decode(await s.readFileBytes(u)),
+      sleep: sleep,
+    ),
+    writeBytes: (u, text) async => withProviderRetry(
+      () async {
+        await s.withFileDescriptor(u, 'wt', (fd) async {
+          await writeToFd(fd.fd, utf8.encode(text));
+        });
+      },
+      sleep: sleep,
+    ),
   );
+}
+
+/// Retries a DocumentsProvider call that can fail transiently while the
+/// provider process is cold (ownCloud `KoinApplication has not been
+/// started`). Retries every failure — SAF errors carry no reliable
+/// transient/permanent signal — up to [attempts] times with linear backoff
+/// ([firstDelay], then doubling). Rethrows the last error when exhausted.
+///
+/// [sleep] is injectable so unit tests run without real delays.
+Future<T> withProviderRetry<T>(
+  Future<T> Function() op, {
+  int attempts = 4,
+  Duration firstDelay = const Duration(milliseconds: 500),
+  Future<void> Function(Duration)? sleep,
+}) async {
+  final wait = sleep ?? Future.delayed;
+  var delay = firstDelay;
+  Object? lastError;
+  StackTrace? lastStack;
+  for (var i = 0; i < attempts; i++) {
+    try {
+      return await op();
+    } catch (e, st) {
+      lastError = e;
+      lastStack = st;
+      if (i == attempts - 1) break;
+      await wait(delay);
+      delay *= 2;
+    }
+  }
+  Error.throwWithStackTrace(lastError!, lastStack!);
 }
 
 /// Writes [bytes] to already-open file descriptor [fd] via libc `write`.
