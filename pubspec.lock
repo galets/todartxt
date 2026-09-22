@@ -600,11 +600,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: master
-      resolved-ref: d86e252ad91a6d87482d7c85131aee0d5ec6a482
+      ref: "v1.0"
+      resolved-ref: d0530bbf720c002599929313af43c6ce30ef56be
       url: "https://github.com/galets/todo_txt.git"
     source: git
-    version: "0.1.0"
+    version: "1.0.0"
   typed_data:
     dependency: transitive
     description:
