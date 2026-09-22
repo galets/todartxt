@@ -57,20 +57,22 @@ class FileTodoStorage implements TodoStorage {
   Future<void> writeAll(String text) async {
     // Preserve symlinks: atomic rename would replace the link itself with
     // a regular file. Resolve to the link target so the linked file is updated.
+    // Uses synchronous I/O so widget tests in fake-async zones complete
+    // without requiring tester.runAsync for UI-triggered saves.
     var effectivePath = path;
-    if (await Link(path).exists()) {
+    if (Link(path).existsSync()) {
       try {
-        effectivePath = await File(path).resolveSymbolicLinks();
+        effectivePath = File(path).resolveSymbolicLinksSync();
       } on FileSystemException {
         // Dangling link or unresolvable: fall back to plain path.
       }
     }
     final f = File(effectivePath);
-    await f.parent.create(recursive: true);
+    f.parent.createSync(recursive: true);
     // Atomic replace: write temp then rename.
     final tmp = File('$effectivePath.tmp');
-    await tmp.writeAsString(text, encoding: utf8);
-    await tmp.rename(effectivePath);
+    tmp.writeAsStringSync(text, encoding: utf8);
+    tmp.renameSync(effectivePath);
   }
 }
 
