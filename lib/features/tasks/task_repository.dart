@@ -22,10 +22,6 @@ class TaskRepository {
   TodoStorage? get storage => _storage;
   List<Task> get tasks => List.unmodifiable(_tasks);
   bool get canUndo => _history.isNotEmpty;
-  bool _dirty = false;
-
-  /// True when in-memory tasks differ from the loaded file.
-  bool get isDirty => _dirty;
 
   /// Loads tasks from [path] via `TodoTxt.load`.
   ///
@@ -39,7 +35,6 @@ class TaskRepository {
     _storage = storage;
     _path = storage.displayName;
     _history.clear();
-    _dirty = false;
     final text = await storage.readAll();
     final lines =
         Stream<String>.fromIterable(const LineSplitter().convert(text));
@@ -47,6 +42,8 @@ class TaskRepository {
   }
 
   /// Persists current tasks back to the file used for loading.
+  /// Every mutation (add/update/remove/toggle/undo) saves immediately,
+  /// so there is no dirty state to flush.
   Future<void> save() async {
     final storage = _storage;
     if (storage == null) throw StateError('No file loaded');
@@ -55,23 +52,15 @@ class TaskRepository {
       buf.writeln(t.toText());
     }
     await storage.writeAll(buf.toString());
-    _dirty = false;
-  }
-
-  /// Saves only when there are unsaved changes (used for autosave on exit).
-  Future<void> saveIfDirty() async {
-    if (!_dirty) return;
-    await save();
   }
 
   /// Re-reads the file from the current storage backend.
   ///
   /// Used when the app regains focus on Android so external edits are
-  /// picked up. Any unsaved changes are flushed first via [saveIfDirty].
+  /// picked up.
   Future<void> reload() async {
     final storage = _storage;
     if (storage == null) return;
-    await saveIfDirty();
     await loadFromStorage(storage);
   }
 
@@ -79,7 +68,6 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks[index].completed = !_tasks[index].completed;
-    _dirty = true;
     await save();
   }
 
@@ -87,7 +75,6 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks.add(task);
-    _dirty = true;
     await save();
   }
 
@@ -95,7 +82,6 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks[index] = task;
-    _dirty = true;
     await save();
   }
 
@@ -103,7 +89,6 @@ class TaskRepository {
     _ensureLoaded();
     _pushHistory();
     _tasks.removeAt(index);
-    _dirty = true;
     await save();
   }
 
@@ -111,18 +96,7 @@ class TaskRepository {
     _ensureLoaded();
     if (_history.isEmpty) return;
     _tasks = _history.removeLast();
-    _dirty = true;
     await save();
-  }
-
-  /// Applies [mutate] to the in-memory task list without saving, marking
-  /// the repository dirty so [saveIfDirty] (autosave on exit / Ctrl+S)
-  /// persists it later. Test hook for buffered edits.
-  void applyUnsaved(void Function(List<Task>) mutate) {
-    _ensureLoaded();
-    _pushHistory();
-    mutate(_tasks);
-    _dirty = true;
   }
 
   void _pushHistory() {

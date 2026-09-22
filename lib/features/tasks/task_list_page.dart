@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:saf/saf.dart';
 import 'package:todo_txt/todo_txt.dart';
 import 'saf_bindings.dart';
@@ -58,9 +57,6 @@ class _TaskListPageState extends State<TaskListPage>
 
   @override
   void dispose() {
-    // Autosave on exit: persist any unsaved changes (fire-and-forget;
-    // dispose cannot await).
-    widget.repository.saveIfDirty().catchError((_) {});
     WidgetsBinding.instance.removeObserver(this);
     _editController.dispose();
     _searchController.dispose();
@@ -74,11 +70,6 @@ class _TaskListPageState extends State<TaskListPage>
       widget.repository.reload().then((_) {
         if (mounted) _refresh();
       }).catchError((_) {});
-    } else if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.detached ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.paused) {
-      widget.repository.saveIfDirty().catchError((_) {});
     }
   }
 
@@ -128,13 +119,6 @@ class _TaskListPageState extends State<TaskListPage>
         ],
       ),
     );
-  }
-
-  Future<void> _save() async {
-    try {
-      await widget.repository.save();
-    } catch (_) {}
-    _refresh();
   }
 
   void _refresh() => setState(() {});
@@ -527,7 +511,6 @@ class _TaskListPageState extends State<TaskListPage>
             _tool(Icons.check, 'Complete', _selected == null ? null : _completeSelected),
             _tool(Icons.undo, 'Undo', widget.repository.canUndo ? _undo : null),
             const VerticalDivider(),
-            _tool(Icons.save, 'Save', _save),
             _tool(Icons.folder_open, 'Storage location', _showStorageInfo),
             const VerticalDivider(),
             _viewMenu(),
@@ -580,8 +563,6 @@ class _TaskListPageState extends State<TaskListPage>
                       await _completeSelected();
                     case 'undo':
                       await _undo();
-                    case 'save':
-                      await _save();
                     case 'storage':
                       await _showStorageInfo();
                     case 'dates':
@@ -618,8 +599,6 @@ class _TaskListPageState extends State<TaskListPage>
                       enabled: widget.repository.canUndo,
                       child: const Text('Undo')),
                   const PopupMenuDivider(),
-                  const PopupMenuItem(
-                      value: 'save', child: Text('Save')),
                   const PopupMenuItem(
                       value: 'storage', child: Text('Storage location…')),
                   const PopupMenuDivider(),
@@ -668,11 +647,7 @@ class _TaskListPageState extends State<TaskListPage>
   Widget build(BuildContext context) {
     final tasks = widget.repository.tasks;
     final visible = _visibleIndices;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
-      },
-      child: Focus(
+    return Focus(
         autofocus: true,
         child: LayoutBuilder(
           builder: (ctx, constraints) {
@@ -809,8 +784,7 @@ class _TaskListPageState extends State<TaskListPage>
             );
           },
         ),
-      ),
-    );
+      );
   }
 
   Widget _section(String s) => Padding(

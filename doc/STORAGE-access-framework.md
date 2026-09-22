@@ -78,10 +78,11 @@ and may be stale offline.
   4. If changed remotely (another machine saved) → do NOT overwrite;
      show conflict dialog (§4 dialog 5): Keep mine / Load theirs / Save a copy
      (`todo-conflict-<ts>.txt` next to the file via SAF create).
-  5. Autosave (`saveIfDirty` on pause/dispose) must also do the
-     check-then-write; if conflict while backgrounded, keep local dirty and
-     prompt on next resume rather than overwriting. The conflict dialog
-     pre-selects **Keep mine** (owner decision).
+  5. Every mutation saves immediately (no dirty state); a background
+      save must also do the
+      check-then-write; if conflict while backgrounded, keep local state and
+      prompt on next resume rather than overwriting. The conflict dialog
+      pre-selects **Keep mine** (owner decision).
 - Within one device the existing `_history`/undo + immediate `save()` per
   mutation stays; only the transport changes.
 - Optional v2: per-line 3-way merge; explicitly out of scope for v1.

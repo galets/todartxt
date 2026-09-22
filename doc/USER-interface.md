@@ -99,7 +99,7 @@ User interactions (all in-memory + `TaskRepository`, persisted on save):
 5.  **Search:** live substring filter combined with sidebar filter.
 6.  **View menu:** hides/shows dates, priorities (badge + inline), tags (pills).
 7.  **Sort menu:** reorders visible list; completed always last.
-8.  **Save:** manual via toolbar/`Ctrl+S`; automatic `saveIfDirty()` (fire-and-forget) on widget `dispose` and on `hidden`/`paused`/`detached` lifecycle events.
+8.  **Save:** automatic on every mutation (`repository.add/update/removeAt/toggleCompleted/undo` each call `save()`); no manual Save button, no `Ctrl+S`, no save on dispose/lifecycle events.
 9.  **Startup:** async `main(args)` requests All-files access (`MANAGE_EXTERNAL_STORAGE`, pre-11 `READ/WRITE_EXTERNAL_STORAGE`) then resolves `todo.txt` path from `args[0]`, else user-picked shared folder (persisted in `SharedPreferences`) when set, else shared `/storage/emulated/0/Tasks/todo.txt` on Android (visible via `adb ls /storage/emulated/0/Tasks/`; grant All-files access when prompted, else file creation fails), else `~/Tasks/todo.txt` (Linux) / app-private docs (fallback); missing directory/file are created, then shows error scaffold if unloadable, spinner while loading.
 *   **Launch splash (Android):** full-size square branding icon (`assets/splash_image.png` / `drawable-nodpi/splash_image.png`, 1024px from `branding/todart-icon.jpeg`). Android 12+ circle-crops `windowSplashScreenAnimatedIcon`, so the system icon is transparent and the uncropped square is shown centered in Flutter (240x240, `BoxFit.contain`) during startup/loading; legacy `launch_background.xml` shows it on API < 31.
 

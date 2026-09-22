@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_txt/todo_txt.dart';
 import 'package:todart_txt/features/tasks/task_list_page.dart';
@@ -46,53 +45,41 @@ void main() {
     await t.pump(const Duration(milliseconds: 100));
   }
 
-  testWidgets('Ctrl+S triggers save', (tester) async {
-    tester.view.physicalSize = const Size(1600, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-    final repo = await loadedRepo(tester);
-    await tester.pumpWidget(MaterialApp(home: TaskListPage(repository: repo)));
-    await settle(tester);
-    final before = repo.saves;
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await flush(tester);
-    expect(repo.saves, greaterThan(before));
-  });
-
-  testWidgets('autosave on dispose persists unsaved changes', (tester) async {
-    tester.view.physicalSize = const Size(1600, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-    final repo = await loadedRepo(tester);
-    await tester.pumpWidget(MaterialApp(home: TaskListPage(repository: repo)));
-    await settle(tester);
-    await tester.runAsync(() async {
-      repo.applyUnsaved((tasks) => tasks.add(Task.fromText('unsaved task')));
-      expect(repo.isDirty, isTrue);
-    });
-    // Unmount page -> dispose should autosave.
-    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-    await flush(tester);
-    expect(repo.isDirty, isFalse);
-    expect(File(repo.path!).readAsStringSync(), contains('unsaved task'));
-  });
-
-  test('saveIfDirty is no-op when clean', () async {
+  test('every mutation saves immediately', () async {
     final path = '${tmp.path}/todo.txt';
     File(path).writeAsStringSync('Buy milk\n');
-    final repo = TaskRepository();
+    final repo = CountingRepo();
     await repo.load(path);
-    expect(repo.isDirty, isFalse);
-    await repo.saveIfDirty();
-    expect(repo.isDirty, isFalse);
+    expect(repo.saves, 0);
+    await repo.add(Task.fromText('Second task'));
+    expect(repo.saves, 1);
+    expect(File(path).readAsStringSync(), contains('Second task'));
+    await repo.toggleCompleted(0);
+    expect(repo.saves, 2);
+    await repo.update(0, Task.fromText('Updated'));
+    expect(repo.saves, 3);
+    await repo.removeAt(1);
+    expect(repo.saves, 4);
+    await repo.undo();
+    expect(repo.saves, 5);
+  });
+
+  testWidgets('no manual Save control exists', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repo = await loadedRepo(tester);
+    await tester.pumpWidget(MaterialApp(home: TaskListPage(repository: repo)));
+    await settle(tester);
+    expect(find.byTooltip('Save'), findsNothing);
+    expect(find.byIcon(Icons.save), findsNothing);
+    // Unmounting without edits triggers no save.
+    final before = repo.saves;
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await flush(tester);
+    expect(repo.saves, before);
   });
 }
