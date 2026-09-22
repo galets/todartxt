@@ -4,21 +4,16 @@ import 'dart:io';
 /// Storage backend seam for todo.txt content.
 ///
 /// Linux + legacy local paths use [FileTodoStorage] (plain `dart:io`).
-/// Android SAF document URIs will use `SafTodoStorage` (slice 2, via
-/// `package:saf`), implementing this same interface so [TaskRepository]
-/// never touches `content://` URIs directly.
+/// Android SAF document URIs use `SafTodoStorage` (via `package:saf`),
+/// implementing this same interface so [TaskRepository] never touches
+/// `content://` URIs directly. Backends always hit the underlying
+/// document/file directly — no caching.
 abstract class TodoStorage {
   /// Full todo.txt text.
   Future<String> readAll();
 
   /// Atomically replace full todo.txt text.
   Future<void> writeAll(String text);
-
-  /// Remote modification time, best-effort (null when unknown/offline).
-  Future<DateTime?> lastModified();
-
-  /// False when offline / provider gone (callers fall back to mirror).
-  Future<bool> isReachable();
 
   /// Human-readable label for storage-location UI (path or URI).
   String get displayName;
@@ -31,16 +26,6 @@ class FileTodoStorage implements TodoStorage {
 
   @override
   String get displayName => path;
-
-  @override
-  Future<bool> isReachable() async => true;
-
-  @override
-  Future<DateTime?> lastModified() async {
-    final f = File(path);
-    if (!await f.exists()) return null;
-    return (await f.stat()).modified;
-  }
 
   @override
   Future<String> readAll() async {
@@ -76,19 +61,14 @@ class FileTodoStorage implements TodoStorage {
   }
 }
 
-/// In-memory fake for unit/widget tests (conflict matrix, dirty-flag,
-/// mirror fallback) without touching the filesystem or SAF.
+/// In-memory fake for unit/widget tests without touching the filesystem or SAF.
 class FakeTodoStorage implements TodoStorage {
   String contents;
-  DateTime? mtime;
-  bool reachable;
   final String label;
   int writes = 0;
 
   FakeTodoStorage(
     this.contents, {
-    this.mtime,
-    this.reachable = true,
     this.label = 'fake',
   });
 
@@ -96,22 +76,13 @@ class FakeTodoStorage implements TodoStorage {
   String get displayName => label;
 
   @override
-  Future<bool> isReachable() async => reachable;
-
-  @override
-  Future<DateTime?> lastModified() async => mtime;
-
-  @override
   Future<String> readAll() async {
-    if (!reachable) throw const FileSystemException('offline');
     return contents;
   }
 
   @override
   Future<void> writeAll(String text) async {
-    if (!reachable) throw const FileSystemException('offline');
     contents = text;
-    mtime = DateTime.now();
     writes++;
   }
 }

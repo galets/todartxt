@@ -34,11 +34,6 @@ SafTodoStorage safStorageForUri(String uri, [Saf? saf]) {
         await writeToFd(fd.fd, utf8.encode(text));
       });
     },
-    statMtime: (u) async {
-      final info = await s.stat(u);
-      if (info == null) return null;
-      return DateTime.fromMillisecondsSinceEpoch(info.lastModified);
-    },
   );
 }
 
