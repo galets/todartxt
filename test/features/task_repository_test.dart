@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_txt/todo_txt.dart';
+import 'package:todart_txt/features/tasks/saf_sync.dart';
 import 'package:todart_txt/features/tasks/task_repository.dart';
+import 'package:todart_txt/features/tasks/todo_storage.dart';
 
 void main() {
   group('resolveTodoPath', () {
@@ -107,5 +109,39 @@ void main() {
       expect(repo.tasks, isEmpty);
       expect(File(missing).existsSync(), isTrue);
     });
+
+    test('load requests sync before reading', () async {
+      final order = <String>[];
+      final storage = FakeTodoStorage('Buy milk\n',
+          label: 'content://com.example.documents/tree/1');
+      final repo = TaskRepository(
+        safSync: SafSync(requestSync: () async {
+          order.add('sync');
+        }),
+      );
+      // Wrap read to record ordering via contents side-effect is not
+      // possible on the fake, so record via a decorated storage.
+      final tracking = _OrderStorage(storage, order);
+      await repo.loadFromStorage(tracking);
+      expect(order, ['sync', 'read']);
+    });
   });
+}
+
+class _OrderStorage implements TodoStorage {
+  final FakeTodoStorage inner;
+  final List<String> order;
+  _OrderStorage(this.inner, this.order);
+
+  @override
+  String get displayName => inner.displayName;
+
+  @override
+  Future<String> readAll() async {
+    order.add('read');
+    return inner.readAll();
+  }
+
+  @override
+  Future<void> writeAll(String text) => inner.writeAll(text);
 }

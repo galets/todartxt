@@ -6,6 +6,7 @@ import 'package:todo_txt/todo_txt.dart';
 
 import 'todo_storage.dart';
 import 'todartxt_config.dart';
+import 'saf_sync.dart';
 
 /// Loads/saves tasks from the file supplied on the command line.
 ///
@@ -15,8 +16,11 @@ import 'todartxt_config.dart';
 class TaskRepository {
   String? _path;
   TodoStorage? _storage;
+  final SafSync _safSync;
   List<Task> _tasks = [];
   final List<List<Task>> _history = [];
+
+  TaskRepository({SafSync? safSync}) : _safSync = safSync ?? SafSync();
 
   String? get path => _path;
   TodoStorage? get storage => _storage;
@@ -31,7 +35,12 @@ class TaskRepository {
   }
 
   /// Loads tasks from an arbitrary [TodoStorage] backend (file or SAF).
+  ///
+  /// Requests a sync *before* reading so a completed sync is
+  /// picked up by the read below (and by any content observers
+  /// registered afterwards).
   Future<void> loadFromStorage(TodoStorage storage) async {
+    await _safSync.maybeSync(storage.displayName);
     _storage = storage;
     _path = storage.displayName;
     _history.clear();
@@ -52,6 +61,7 @@ class TaskRepository {
       buf.writeln(t.toText());
     }
     await storage.writeAll(buf.toString());
+    await _safSync.maybeSync(storage.displayName);
   }
 
   /// Re-reads the file from the current storage backend.
