@@ -15,7 +15,15 @@ Runs on **Android + Linux**. On Android, open your file via the System file pick
 Google Drive, or local storage all work through the same path. On Linux it is a
 plain file: CLI arg → remembered dir → `~/Tasks/todo.txt`.
 
-Edit `~/.config/todartxt.yaml` for alternative file location
+Edit `~/.config/todartxt.yaml` for alternative file location.
+For live sync via a [gatefile](https://github.com/galets/gatefile) server:
+
+```yaml
+todo_file: gatefile://127.0.0.1:8654/gatefile/todo.txt  # or gatefiles:// for HTTPS
+api_key: <shared secret>
+```
+
+See `doc/GATEFILE.md` for the backend design.
 
 ## Key Features
 

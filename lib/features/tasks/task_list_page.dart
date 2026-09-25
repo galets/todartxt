@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:saf/saf.dart';
 import 'package:todo_txt/todo_txt.dart';
+import 'gatefile_storage.dart';
 import 'saf_bindings.dart';
 import 'storage_location.dart';
 import 'task_repository.dart';
@@ -67,6 +68,11 @@ class _TaskListPageState extends State<TaskListPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Gatefile converges via SSE (reconnect replays the ETag),
+      // so a focus-grab reload would only waste a GET.
+      if (widget.repository.storage is GatefileTodoStorage) {
+        return;
+      }
       widget.repository.reload().then((_) {
         if (mounted) _refresh();
       }).catchError((_) {});

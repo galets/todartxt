@@ -61,7 +61,29 @@ Future<String?> readTodoPathFromConfigFile(String configPath,
   }
 }
 
-/// Ensure `~/.config/todartxt.yaml` exists, creating it with [fallbackTodoPath]
+/// Read the `api_key` (shared secret) for gatefile backends.
+/// Returns null when missing/unparseable.
+Future<String?> readApiKeyFromConfigFile(String configPath) async {
+  try {
+    final file = File(configPath);
+    if (!await file.exists()) {
+      return null;
+    }
+    final text = await file.readAsString();
+    final parsed = loadYaml(text);
+    if (parsed is! Map) {
+      return null;
+    }
+    final v = parsed['api_key'];
+    if (v is String && v.isNotEmpty) {
+      return v;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+/// Ensure `~/.config/todartxt.yaml` exists, creating it
 /// as `todo_file:` when absent, then return the configured todo.txt path.
 ///
 /// Previous Linux default ([fallbackTodoPath], e.g. `~/Tasks/todo.txt`) is

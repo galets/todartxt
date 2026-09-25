@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:saf/saf.dart';
 
 import 'features/tasks/task_list_page.dart';
 import 'features/tasks/task_repository.dart';
 
+import 'features/tasks/gatefile_storage.dart';
 import 'features/tasks/saf_bindings.dart';
 import 'features/tasks/storage_location.dart';
+import 'features/tasks/todo_storage.dart';
+import 'features/tasks/todartxt_config.dart';
 
 /// Entry point.
 ///
@@ -50,6 +55,54 @@ class _HomeState extends State<_Home> {
   String? _error;
   bool _loading = false;
   bool _showingSplash = true;
+  StreamSubscription<String>? _gateSub;
+
+  /// Resolve todo.txt backend: gatefile > SAF > plain file.
+  Future<TodoStorage> _storageFor(String path) async {
+    if (isGatefilePath(path)) {
+      final cfg = todotxtConfigPath();
+      final key = await readApiKeyFromConfigFile(cfg) ?? '';
+      if (key.isEmpty) {
+        throw GatefileAuthException('Missing api_key in $cfg');
+      }
+      return GatefileTodoStorage(gatefileEndpointUri(path), key);
+    }
+    if (isSafUri(path)) {
+      return safStorageForUri(path);
+    }
+    return FileTodoStorage(path);
+  }
+
+  /// Subscribe to SSE; on remote etag reload + refresh UI.
+  void _watchGatefile(TodoStorage s) {
+    _gateSub?.cancel();
+    if (s is! GatefileTodoStorage) {
+      return;
+    }
+    _gateSub = s.watchEtags().listen(
+      (etag) async {
+        if (etag == s.currentEtag) {
+          return;
+        }
+        try {
+          await _repo.reload();
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (_) {}
+      },
+      onError: (_) {},
+    );
+  }
+
+  @override
+  void dispose() {
+    _gateSub?.cancel();
+    (_repo.storage is GatefileTodoStorage)
+        ? (_repo.storage as GatefileTodoStorage).close()
+        : null;
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -71,10 +124,8 @@ class _HomeState extends State<_Home> {
       return;
     }
     _loading = true;
-    final loadFuture = isSafUri(widget.todoPath)
-        ? _repo.loadFromStorage(safStorageForUri(widget.todoPath))
-        : _repo.load(widget.todoPath);
-    loadFuture.then((_) {
+    _storageFor(widget.todoPath).then((s) => _repo.loadFromStorage(s)).then((_) {
+      _watchGatefile(_repo.storage!);
       if (mounted) setState(() => _loading = false);
     }).catchError((Object e) {
       if (mounted) {
@@ -93,11 +144,8 @@ class _HomeState extends State<_Home> {
       _loading = true;
     });
     try {
-      if (isSafUri(widget.todoPath)) {
-        await _repo.loadFromStorage(safStorageForUri(widget.todoPath));
-      } else {
-        await _repo.load(widget.todoPath);
-      }
+      await _repo.loadFromStorage(await _storageFor(widget.todoPath));
+      _watchGatefile(_repo.storage!);
       if (mounted) setState(() => _loading = false);
     } catch (e) {
       if (mounted) {
