@@ -5,6 +5,7 @@ import 'gatefile_storage.dart';
 import 'saf_bindings.dart';
 import 'storage_location.dart';
 import 'task_repository.dart';
+import 'app_log.dart';
 
 enum _FilterKind { all, uncategorized, due, context, project, priority, complete }
 
@@ -121,6 +122,85 @@ class _TaskListPageState extends State<TaskListPage>
               _pickStorageDir();
             },
             child: const Text('Choose file'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _showGatefileConfigDialog();
+            },
+            child: const Text('Gatefile config'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showGatefileConfigDialog() async {
+    final urlController = TextEditingController();
+    final keyController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Gatefile configuration'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  labelText: 'Gatefile URL',
+                  hintText: 'https://example.com/gatefile/todo.txt',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: keyController,
+                decoration: const InputDecoration(
+                  labelText: 'API key',
+                  hintText: 'Bearer token',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => navigator.pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final url = urlController.text.trim();
+              final apiKey = keyController.text.trim();
+              AppLog.info('gatefile: saving config url=$url');
+              try {
+                final path = await saveGatefileConfig(url, apiKey);
+                AppLog.info('gatefile: saved path=$path');
+                if (!mounted) return;
+                navigator.pop();
+                await widget.repository.loadFromStorage(
+                    GatefileTodoStorage(gatefileEndpointUri(path), apiKey));
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Gatefile configured: $path')),
+                  );
+                }
+              } catch (e) {
+                AppLog.err('gatefile: save failed: $e');
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Invalid config: $e')),
+                );
+              }
+              _refresh();
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

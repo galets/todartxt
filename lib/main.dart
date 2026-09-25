@@ -66,11 +66,10 @@ class _HomeState extends State<_Home> {
   Future<TodoStorage> _storageFor(String path) async {
     if (isGatefilePath(path)) {
       AppLog.info('backend=gatefile path=$path');
-      final cfg = todotxtConfigPath();
-      final key = await readApiKeyFromConfigFile(cfg) ?? '';
+      final key = await readGatefileApiKey() ?? '';
       if (key.isEmpty) {
-        AppLog.err('gatefile: missing api_key in $cfg');
-        throw GatefileAuthException('Missing api_key in $cfg');
+        AppLog.err('gatefile: missing api_key in prefs');
+        throw GatefileAuthException('Missing api_key');
       }
       return GatefileTodoStorage(gatefileEndpointUri(path), key);
     }

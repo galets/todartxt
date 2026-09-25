@@ -8,6 +8,56 @@ import 'task_repository.dart';
 const storagePathPrefsKey = 'todo_txt_custom_path';
 const storageDirPrefsKey = 'todo_txt_custom_dir';
 const safUriPrefsKey = 'todo_txt_saf_uri';
+const gatefileApiKeyPrefsKey = 'todo_txt_gatefile_api_key';
+
+/// Accept `http(s)://` or `gatefile(s)://`, return canonical
+/// `gatefile(s)://` form. Returns null when invalid.
+String? normalizeGatefileInput(String raw) {
+  final v = raw.trim();
+  if (v.isEmpty) {
+    return null;
+  }
+  if (v.startsWith('gatefile://') || v.startsWith('gatefiles://')) {
+    return v;
+  }
+  if (v.startsWith('http://')) {
+    return 'gatefile://${v.substring('http://'.length)}';
+  }
+  if (v.startsWith('https://')) {
+    return 'gatefiles://${v.substring('https://'.length)}';
+  }
+  return null;
+}
+
+/// Persist gatefile URL + API key. Returns canonical path.
+Future<String> saveGatefileConfig(String url, String apiKey,
+    {SharedPreferences? prefs}) async {
+  final path = normalizeGatefileInput(url);
+  if (path == null || path.isEmpty) {
+    throw ArgumentError('Invalid gatefile URL: $url');
+  }
+  if (apiKey.isEmpty) {
+    throw ArgumentError('Missing API key');
+  }
+  final p = prefs ?? await SharedPreferences.getInstance();
+  await p.setString(storagePathPrefsKey, path);
+  await p.setString(gatefileApiKeyPrefsKey, apiKey);
+  return path;
+}
+
+/// Read persisted gatefile API key (Android GUI config).
+Future<String?> readGatefileApiKey({SharedPreferences? prefs}) async {
+  try {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = p.getString(gatefileApiKeyPrefsKey);
+    if (v != null && v.isNotEmpty) {
+      return v;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
 
 /// Effective todo.txt location.
 ///
