@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
+import 'app_log.dart';
 import 'todo_storage.dart';
 
 /// Fatal config error: bad/missing API key. Never retry with same key.
@@ -79,17 +80,21 @@ class GatefileTodoStorage implements TodoStorage {
   /// GET document. Updates [_currentEtag] on every 200.
   @override
   Future<String> readAll() async {
+    AppLog.debug('GET $endpoint');
     final req = await _client.getUrl(endpoint);
     _auth.forEach(req.headers.add);
     final resp = await req.close();
     if (resp.statusCode == 401) {
+      AppLog.err('GET 401: bad api_key');
       throw GatefileAuthException();
     }
     if (resp.statusCode != 200) {
+      AppLog.warn('GET failed: ${resp.statusCode}');
       throw HttpException('GET failed: ${resp.statusCode}');
     }
     final body = await resp.transform(utf8.decoder).join();
     _currentEtag = _etagOf(resp.headers);
+    AppLog.debug('GET 200 etag=$_currentEtag len=${body.length}');
     return body;
   }
 
@@ -105,33 +110,24 @@ class GatefileTodoStorage implements TodoStorage {
   }
 
   Future<void> _postLocked(String text) async {
+    AppLog.debug('POST ${text.length} bytes etag=$_currentEtag');
+    if (_currentEtag == null || _currentEtag!.isEmpty) {
+      throw Exception("cannot write without ETag");
+    }
+
     var rebases = 0;
     // ignore: unused_local_variable
     var pending = text;
     while (true) {
-      var etag = _currentEtag;
-      if (etag == null || etag.isEmpty) {
-        // Never POST without ETag: fetch first.
-        await readAll();
-        etag = _currentEtag;
-        rebases++;
-        if (rebases > _maxRebase) {
-          throw GatefileConflictException();
-        }
-        continue;
-      }
+      var etag = _currentEtag!;
       final outcome = await _tryPost(etag, pending);
       if (outcome.result == _PostResult.ok) {
-        // POST 200: adopt new ETag, no refresh GET. The server sends
-        // no ETag header, so derive it as md5 of the written body
-        // (server ETag scheme). A hook rewrite would broadcast a
-        // different ETag, converging via SSE.
-        _currentEtag =
-            outcome.etag.isEmpty ? _md5Hex(pending) : outcome.etag;
+        _currentEtag = outcome.etag;
         return;
       }
       if (outcome.result == _PostResult.conflict) {
         rebases++;
+        AppLog.info('POST 409: rebase $rebases/$_maxRebase');
         if (rebases > _maxRebase) {
           throw GatefileConflictException();
         }
@@ -141,6 +137,7 @@ class GatefileTodoStorage implements TodoStorage {
         continue;
       }
       if (outcome.result == _PostResult.persisted) {
+        AppLog.warn('POST 500: persisted w/o broadcast, re-GET');
         // 500: doc persisted, no broadcast. Reconcile via GET.
         final body = await readAll();
         if (body == pending) {
@@ -165,15 +162,21 @@ class GatefileTodoStorage implements TodoStorage {
         final req = await _client.postUrl(endpoint);
         _auth.forEach(req.headers.add);
         req.headers.set('If-Match', etag);
-        req.headers.contentType = ContentType('text', 'plain');
-        req.write(body);
+        // POST body as UTF-8 bytes. req.write uses latin1 and
+        // throws on unicode (e.g. emoji).
+        req.headers.contentType = ContentType('text', 'plain', charset: 'utf-8');
+        final bytes = utf8.encode(body);
+        req.contentLength = bytes.length;
+        req.add(bytes);
         final resp = await req.close();
         final newEtag = _etagOf(resp.headers);
         await resp.drain();
         if (resp.statusCode == 200) {
+          AppLog.debug('POST 200 etag=$newEtag');
           return _PostOutcome(_PostResult.ok, newEtag);
         }
         if (resp.statusCode == 401) {
+          AppLog.err('POST 401: bad api_key');
           throw GatefileAuthException();
         }
         if (resp.statusCode == 409) {
@@ -184,6 +187,7 @@ class GatefileTodoStorage implements TodoStorage {
         }
         if (resp.statusCode == 423 || resp.statusCode >= 500) {
           // Same-ETag backoff retry, unless SSE invalidated etag.
+          AppLog.warn('POST ${resp.statusCode}: retry $attempt d=$delay');
           if (attempt >= _maxPostAttempts) {
             throw HttpException('POST failed: ${resp.statusCode}');
           }
@@ -202,7 +206,8 @@ class GatefileTodoStorage implements TodoStorage {
         throw HttpException('POST failed: ${resp.statusCode}');
       } on GatefileAuthException {
         rethrow;
-      } catch (_) {
+      } catch (e) {
+        AppLog.err('POST failed: $e');
         if (attempt >= _maxPostAttempts) {
           rethrow;
         }
@@ -259,6 +264,7 @@ class GatefileTodoStorage implements TodoStorage {
               buf = buf.substring(i + 2);
               if (token.isNotEmpty && !done) {
                 // Skip update when event matches held ETag.
+                AppLog.debug('SSE event $token (held=$_currentEtag)');
                 if (token != _currentEtag) {
                   ctrl.add(token);
                 }
@@ -271,6 +277,7 @@ class GatefileTodoStorage implements TodoStorage {
           }
           break;
         } catch (_) {
+          AppLog.warn('SSE drop, reconnect in $delay');
           // Reconnect below.
         }
         if (done || _closed) {

@@ -15,7 +15,12 @@ App loads data using TodoTxt class from file supplied on command line. App edits
 
 ## Logging
 
-App logs to syslog
+App logs to stderr as `[level] message` (levels: `debug`, `info`,
+`warning` (default), `error`). Level from `~/.config/todartxt.yaml`:
+
+```yaml
+log_level: debug
+```
 
 ## UI
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:saf/saf.dart';
@@ -10,6 +11,7 @@ import 'features/tasks/gatefile_storage.dart';
 import 'features/tasks/saf_bindings.dart';
 import 'features/tasks/storage_location.dart';
 import 'features/tasks/todo_storage.dart';
+import 'features/tasks/app_log.dart';
 import 'features/tasks/todartxt_config.dart';
 
 /// Entry point.
@@ -22,6 +24,9 @@ import 'features/tasks/todartxt_config.dart';
 /// `<storage root>/Tasks/todo.txt`, visible via `adb ls`).
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  final cfg = todotxtConfigPath();
+  AppLog.init(await readLogLevelFromConfigFile(cfg));
+  stderr.writeln('[info] config=$cfg');
   await ensureSharedStorageAccess();
   runApp(MyApp(todoPath: await effectiveTodoPath(args)));
 }
@@ -60,16 +65,20 @@ class _HomeState extends State<_Home> {
   /// Resolve todo.txt backend: gatefile > SAF > plain file.
   Future<TodoStorage> _storageFor(String path) async {
     if (isGatefilePath(path)) {
+      AppLog.info('backend=gatefile path=$path');
       final cfg = todotxtConfigPath();
       final key = await readApiKeyFromConfigFile(cfg) ?? '';
       if (key.isEmpty) {
+        AppLog.err('gatefile: missing api_key in $cfg');
         throw GatefileAuthException('Missing api_key in $cfg');
       }
       return GatefileTodoStorage(gatefileEndpointUri(path), key);
     }
     if (isSafUri(path)) {
+      AppLog.info('backend=saf path=$path');
       return safStorageForUri(path);
     }
+    AppLog.info('backend=file path=$path');
     return FileTodoStorage(path);
   }
 
@@ -124,10 +133,13 @@ class _HomeState extends State<_Home> {
       return;
     }
     _loading = true;
+    AppLog.info('loading todoPath=${widget.todoPath}');
     _storageFor(widget.todoPath).then((s) => _repo.loadFromStorage(s)).then((_) {
+      AppLog.info('loaded ${_repo.tasks.length} tasks');
       _watchGatefile(_repo.storage!);
       if (mounted) setState(() => _loading = false);
     }).catchError((Object e) {
+      AppLog.err('load failed: $e');
       if (mounted) {
         setState(() {
           _loading = false;

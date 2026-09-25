@@ -8,6 +8,7 @@
 todo_file: gatefile://<host>:<port>/<path>   # plain HTTP
 todo_file: gatefiles://<host>:<port>/<path>  # HTTPS
 api_key: <shared secret>
+log_level: warning  # debug | info | warning (default) | error; all go to stderr
 ```
 
 Mapping:

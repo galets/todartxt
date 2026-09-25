@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'app_log.dart';
+
 /// Default location of the todotxt YAML config on Linux:
 /// `~/.config/todartxt.yaml` (respects `XDG_CONFIG_HOME`).
 String todotxtConfigPath({String? homeDir, String? xdgConfigHome}) {
@@ -81,6 +83,25 @@ Future<String?> readApiKeyFromConfigFile(String configPath) async {
     return null;
   } catch (_) {
     return null;
+  }
+}
+
+/// Read `log_level` from config file. Defaults to [LogLevel.warning].
+Future<LogLevel> readLogLevelFromConfigFile(String configPath) async {
+  try {
+    final file = File(configPath);
+    if (!await file.exists()) {
+      return LogLevel.warning;
+    }
+
+    final parsed = loadYaml(await file.readAsString());
+    if (parsed is! Map) {
+      return LogLevel.warning;
+    }
+
+    return logLevelFromYamlMap(parsed as Map);
+  } catch (_) {
+    return LogLevel.warning;
   }
 }
 /// Ensure `~/.config/todartxt.yaml` exists, creating it

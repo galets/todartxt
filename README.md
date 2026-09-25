@@ -21,6 +21,7 @@ For live sync via a [gatefile](https://github.com/galets/gatefile) server:
 ```yaml
 todo_file: gatefile://127.0.0.1:8654/gatefile/todo.txt  # or gatefiles:// for HTTPS
 api_key: <shared secret>
+log_level: warning  # debug | info | warning | error, logged to stderr
 ```
 
 See `doc/GATEFILE.md` for the backend design.
