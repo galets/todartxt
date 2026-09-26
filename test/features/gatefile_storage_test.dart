@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:todart_txt/features/tasks/gatefile_storage.dart';
+import 'package:gatefile_dart/gatefile_dart.dart' show AuthFailed, Conflict;
+import 'package:todart_txt/features/tasks/storage_location.dart';
+import 'package:todart_txt/features/tasks/todo_storage.dart';
 
 /// Integration vs real `gatefile` binary (must be on PATH).
 /// Spawns server per test on 127.0.0.1:0? gatefile needs fixed port,
@@ -24,11 +26,6 @@ void main() {
       expect(isGatefilePath('gatefile://h/p'), isTrue);
       expect(isGatefilePath('gatefiles://h/p'), isTrue);
       expect(isGatefilePath('/a/b.txt'), isFalse);
-    });
-
-    test('normalizeEtag strips quotes/CR', () {
-      expect(normalizeEtag('  abc\r\n'), 'abc');
-      expect(normalizeEtag('"abc"'), 'abc');
     });
   });
 
@@ -81,30 +78,29 @@ void main() {
       tmp.deleteSync(recursive: true);
     });
 
-    test('read + write roundtrip with etag refresh', () async {
+    test('read + write roundtrip', () async {
       final s = GatefileTodoStorage(base, apiKey);
       expect(await s.readAll(), 'a\n');
-      final e1 = s.currentEtag;
-      expect(e1, isNotNull);
       await s.writeAll('b\n');
       expect(await s.readAll(), 'b\n');
-      expect(s.currentEtag, isNot(e1));
       s.close();
     });
 
     test('401 is fatal', () async {
       final s = GatefileTodoStorage(base, 'wrong');
-      expect(s.readAll(), throwsA(isA<GatefileAuthException>()));
+      expect(s.readAll(), throwsA(isA<AuthFailed>()));
       s.close();
     });
 
-    test('409 race: stale client rebases', () async {
+    test('stale write throws Conflict; re-get + retry wins', () async {
       final a = GatefileTodoStorage(base, apiKey);
       final b = GatefileTodoStorage(base, apiKey);
       await a.readAll();
       await b.readAll();
       await a.writeAll('from-a\n');
-      // b holds stale etag; writeAll must re-GET + retry, not throw.
+      // b is stale: read-modify-write per library example.
+      await expectLater(b.writeAll('from-b\n'), throwsA(isA<Conflict>()));
+      await b.readAll();
       await b.writeAll('from-b\n');
       expect(await a.readAll(), 'from-b\n');
       a.close();
@@ -114,18 +110,18 @@ void main() {
     test('SSE skips own echo, emits only remote change', () async {
       final s = GatefileTodoStorage(base, apiKey);
       await s.readAll();
-      final events = <String>[];
-      final sub = s.watchEtags().listen(events.add);
+      var events = 0;
+      final sub = s.updated.listen((_) => events++);
       // Held ETag echo must be skipped: no event while idle.
       await Future.delayed(const Duration(seconds: 1));
-      expect(events, isEmpty);
+      expect(events, 0);
       // Remote change from another client must surface.
       final other = GatefileTodoStorage(base, apiKey);
       await other.readAll();
       await other.writeAll('sse-trigger\n');
       other.close();
-      await _waitFor(() => events.isNotEmpty);
-      expect(events.last, other.currentEtag);
+      await _waitFor(() => events > 0);
+      expect(await s.readAll(), 'sse-trigger\n');
       await sub.cancel();
       s.close();
     });

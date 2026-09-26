@@ -102,6 +102,21 @@ Future<String> effectiveTodoPath(
   );
 }
 
+/// True for `gatefile://` / `gatefiles://` config values.
+bool isGatefilePath(String path) =>
+    path.startsWith('gatefile://') || path.startsWith('gatefiles://');
+
+/// Map `gatefile(s)://host...` to `http(s)://host...` per doc/GATEFILE.md.
+Uri gatefileEndpointUri(String path) {
+  if (path.startsWith('gatefile://')) {
+    return Uri.parse('http://${path.substring('gatefile://'.length)}');
+  }
+  if (path.startsWith('gatefiles://')) {
+    return Uri.parse('https://${path.substring('gatefiles://'.length)}');
+  }
+  throw ArgumentError('Not a gatefile URI: $path');
+}
+
 /// True when [path] is a SAF document URI (`content://…`) rather than a
 /// plain filesystem path. Such URIs must go through the SAF backend —
 /// never `dart:io File` (which fails with `FileSystemException: Creation

@@ -1,29 +1,57 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:todart_txt/features/tasks/gatefile_storage.dart';
+import 'package:gatefile_dart/gatefile_dart.dart' as gf;
 import 'package:todart_txt/features/tasks/task_list_page.dart';
 import 'package:todart_txt/features/tasks/task_repository.dart';
+import 'package:todart_txt/features/tasks/todo_storage.dart';
 
-/// In-memory gatefile backend: no sockets (widget tests stub HTTP).
+// Fake transport: subscribe() blocks forever (open stream),
+// so _listenSse never hits the delayed-backoff or reconnect paths.
+class _QuietTransport implements gf.GatefileTransport {
+  final _ctrl = StreamController<String>();
+
+  @override
+  Future<({String body, String etag})> fetchDoc() async =>
+      (body: 'plain task\n', etag: 'e1');
+
+  @override
+  Future<String> storeDoc(String content, String etag) async => etag;
+
+  @override
+  Future<Stream<String>> subscribe() async => _ctrl.stream;
+
+  @override
+  void close() {
+    _ctrl.close();
+  }
+}
+
+/// In-memory gatefile backend: no sockets, no retry timers.
 class CountingGatefileStorage extends GatefileTodoStorage {
   int reads = 0;
   CountingGatefileStorage()
-      : super(Uri.parse('http://127.0.0.1:1/gatefile/todo.txt'), 'k');
+      : super(
+          Uri.parse('http://127.0.0.1:1/gatefile/todo.txt'),
+          'k',
+          doc: gf.GatefileDocument.withTransport(
+            transport: _QuietTransport(),
+          ),
+        );
 
   @override
   Future<String> readAll() async {
     reads++;
     return 'plain task\n';
   }
-
-  @override
-  Future<void> writeAll(String text) async {}
 }
 
 void main() {
   testWidgets('resume does not re-GET gatefile backend (SSE covers it)',
       (tester) async {
     final storage = CountingGatefileStorage();
+    addTearDown(storage.close);
     final repo = TaskRepository();
     await tester.runAsync(() async {
       await repo.loadFromStorage(storage);

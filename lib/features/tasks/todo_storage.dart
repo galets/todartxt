@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:gatefile_dart/gatefile_dart.dart' as gf;
+
 /// Storage backend seam for todo.txt content.
 ///
 /// Linux + legacy local paths use [FileTodoStorage] (plain `dart:io`).
@@ -58,6 +60,37 @@ class FileTodoStorage implements TodoStorage {
     final tmp = File('$effectivePath.tmp');
     tmp.writeAsStringSync(text, encoding: utf8);
     tmp.renameSync(effectivePath);
+  }
+}
+
+/// Gatefile backend: [TodoStorage] bridge over `GatefileDocument`.
+///
+/// Pure delegation: [readAll] is `get`, [writeAll] is `put`
+/// (throws [gf.Conflict] on stale write: re-`get`, merge, retry),
+/// [updated] fires per remote change (call [readAll] to refresh).
+class GatefileTodoStorage implements TodoStorage {
+  final Uri endpoint;
+  final String apiKey;
+  final gf.GatefileDocument _doc;
+
+  GatefileTodoStorage(this.endpoint, this.apiKey, {gf.GatefileDocument? doc})
+      : _doc = doc ?? gf.GatefileDocument(baseUrl: endpoint, apiKey: apiKey);
+
+  /// Fires per remote change (no payload). Call [readAll] to refresh.
+  Stream<void> get updated => _doc.updated;
+
+  @override
+  String get displayName => endpoint.toString();
+
+  @override
+  Future<String> readAll() => _doc.get();
+
+  @override
+  Future<void> writeAll(String text) => _doc.put(text);
+
+  /// Stop SSE + HTTP client.
+  void close() {
+    _doc.close();
   }
 }
 

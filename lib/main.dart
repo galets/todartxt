@@ -4,10 +4,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:saf/saf.dart';
 
+import 'package:gatefile_dart/gatefile_dart.dart' show AuthFailed;
+
 import 'features/tasks/task_list_page.dart';
 import 'features/tasks/task_repository.dart';
 
-import 'features/tasks/gatefile_storage.dart';
 import 'features/tasks/saf_bindings.dart';
 import 'features/tasks/storage_location.dart';
 import 'features/tasks/todo_storage.dart';
@@ -60,16 +61,18 @@ class _HomeState extends State<_Home> {
   String? _error;
   bool _loading = false;
   bool _showingSplash = true;
-  StreamSubscription<String>? _gateSub;
+  StreamSubscription<void>? _gateSub;
 
   /// Resolve todo.txt backend: gatefile > SAF > plain file.
   Future<TodoStorage> _storageFor(String path) async {
     if (isGatefilePath(path)) {
       AppLog.info('backend=gatefile path=$path');
-      final key = await readGatefileApiKey() ?? '';
+      final key = Platform.isAndroid
+          ? await readGatefileApiKey() ?? ''
+          : await readApiKeyFromConfigFile(todotxtConfigPath()) ?? '';
       if (key.isEmpty) {
-        AppLog.err('gatefile: missing api_key in prefs');
-        throw GatefileAuthException('Missing api_key');
+        AppLog.err('gatefile: missing api_key');
+        throw const AuthFailed();
       }
       return GatefileTodoStorage(gatefileEndpointUri(path), key);
     }
@@ -81,17 +84,14 @@ class _HomeState extends State<_Home> {
     return FileTodoStorage(path);
   }
 
-  /// Subscribe to SSE; on remote etag reload + refresh UI.
+  /// Subscribe to SSE; on remote change reload + refresh UI.
   void _watchGatefile(TodoStorage s) {
     _gateSub?.cancel();
     if (s is! GatefileTodoStorage) {
       return;
     }
-    _gateSub = s.watchEtags().listen(
-      (etag) async {
-        if (etag == s.currentEtag) {
-          return;
-        }
+    _gateSub = s.updated.listen(
+      (_) async {
         try {
           await _repo.reload();
           if (mounted) {

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:saf/saf.dart';
 import 'package:todo_txt/todo_txt.dart';
-import 'gatefile_storage.dart';
 import 'saf_bindings.dart';
 import 'storage_location.dart';
 import 'task_repository.dart';
+import 'todo_storage.dart';
 import 'app_log.dart';
 
 enum _FilterKind { all, uncategorized, due, context, project, priority, complete }
