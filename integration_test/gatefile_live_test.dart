@@ -1,34 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gatefile_dart/gatefile_dart.dart' show AuthFailed, Conflict;
-import 'package:todart_txt/features/tasks/storage_location.dart';
 import 'package:todart_txt/features/tasks/todo_storage.dart';
 
-/// Integration vs real `gatefile` binary (must be on PATH).
-/// Spawns server per test on 127.0.0.1:0? gatefile needs fixed port,
-/// so pick a free one via ServerSocket probe.
+/// Needs real `gatefile` binary on PATH.
+/// Run: `flutter test integration_test/gatefile_live_test.dart`
+/// Excluded from normal `flutter test` (runs `test/` only).
 void main() {
-  group('gatefile mapping', () {
-    test('scheme mapping', () {
-      expect(
-        gatefileEndpointUri('gatefile://127.0.0.1:8654/gatefile/todo.txt')
-            .toString(),
-        'http://127.0.0.1:8654/gatefile/todo.txt',
-      );
-      expect(
-        gatefileEndpointUri('gatefiles://example.com/gatefile/todo.txt')
-            .toString(),
-        'https://example.com/gatefile/todo.txt',
-      );
-      expect(isGatefilePath('gatefile://h/p'), isTrue);
-      expect(isGatefilePath('gatefiles://h/p'), isTrue);
-      expect(isGatefilePath('/a/b.txt'), isFalse);
-    });
-  });
-
   group('gatefile live server', () {
     late Process proc;
     late Directory tmp;
