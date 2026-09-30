@@ -343,12 +343,11 @@ class _TaskListPageState extends State<TaskListPage>
   bool get _canIncreasePriority =>
       _selected != null && _selectedPriority != 'A';
   bool get _canDecreasePriority =>
-      _selected != null &&
-      _selectedPriority != null &&
-      _selectedPriority != 'Z';
+      _selected != null && _selectedPriority != 'Z';
 
   static String _shiftedPriority(String? current, int delta) {
-    if (current == null) return 'Z';
+    // No priority: raising gives top priority, lowering gives runner-up.
+    if (current == null) return delta < 0 ? 'A' : 'B';
     final code = current.codeUnitAt(0) + delta;
     return String.fromCharCode(code.clamp(65, 90));
   }
